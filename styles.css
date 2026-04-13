@@ -276,3 +276,78 @@ canvas       { display: block; width: 100% !important; }
 .mcard-pair  { animation: fadeUp .3s ease both; }
 .chart-panel { animation: fadeUp .35s ease both; }
 .kw-panel    { animation: fadeUp .4s ease both; }
+
+/* ── SKELETON LOADING ────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skel {
+  background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 50%, var(--bg3) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 4px;
+}
+.mval-skel   { height: 26px; width: 70%; border-radius: 6px; }
+.delta-skel  { height: 10px; width: 55%; }
+.skel-row td { padding: 10px 12px; }
+.skel-row td div { height: 10px; border-radius: 3px; }
+.skel-row:nth-child(even) td div { width: 70%; }
+.skel-row:nth-child(odd)  td div { width: 85%; }
+.skel-card   { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+
+/* ── STICKY TABLE HEADER ─────────────────────── */
+.sticky-head th {
+  position: sticky;
+  top: 52px; /* height of topbar */
+  z-index: 10;
+  background: var(--bg3);
+}
+
+/* ── DATE RANGE LABEL ────────────────────────── */
+.date-range-lbl {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--body);
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+/* ── CSV BUTTON ──────────────────────────────── */
+.btn-csv {
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text2);
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.btn-csv:hover { border-color: var(--green); color: var(--green); }
+
+/* ── KEYWORD DRILL ───────────────────────────── */
+.kw-drill {
+  cursor: pointer;
+  transition: color .15s;
+}
+.kw-drill:hover {
+  color: var(--accent-l);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── EMPTY STATE ─────────────────────────────── */
+.empty-state {
+  padding: 40px 20px;
+  text-align: center;
+}
+.empty-icon  { font-size: 28px; margin-bottom: 10px; opacity: .5; }
+.empty-title { font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+.empty-sub   { font-size: 12px; color: var(--text3); line-height: 1.6; }
