@@ -21,22 +21,23 @@ import {
 
 // ── BOOT ──────────────────────────────────────
 
-window.onload = async () => {
+// ES Modules execute as soon as they're parsed — use top-level init
+// instead of window.onload which can race with module evaluation
+async function init() {
+  S.clientId = CLIENT_ID;
+
   const bt = localStorage.getItem('seo_brand');
   if (bt) document.getElementById('brand-terms').value = bt;
   renderCountryOpts('');
   restoreWidgetPositions();
 
-  // always ensure clientId is set from config
-  S.clientId = CLIENT_ID;
-
-  // handle OAuth token coming back in the URL hash
+  // 1. Handle OAuth redirect (token in URL hash)
   if (handleOAuthRedirect()) {
     await showApp();
     return;
   }
 
-  // already have a valid session token in this tab
+  // 2. Existing session token
   const tok = sessionStorage.getItem('seo_tok');
   if (tok) {
     S.token = tok;
@@ -44,32 +45,33 @@ window.onload = async () => {
     return;
   }
 
-  // no token — show redirect message then go to Google sign-in
-  const overlay = document.getElementById('setup-overlay');
-  const card    = overlay.querySelector('.setup-card');
+  // 3. No token — show a clean sign-in screen with a button
+  //    (auto-redirect is unreliable on some browsers/CSPs)
+  const card = document.querySelector('.setup-card');
   card.innerHTML = `
     <div class="setup-logo">SEO·IQ</div>
-    <div class="setup-sub" style="text-align:center;margin-bottom:32px">Connecting to Google…</div>
-    <div style="text-align:center;margin-bottom:28px">
-      <div class="skel" style="width:48px;height:48px;border-radius:50%;margin:0 auto 16px;background:linear-gradient(135deg,var(--accent),var(--accent-l))"></div>
-      <div style="font-size:13px;color:var(--text3)">Redirecting to Google sign-in</div>
-    </div>
-    <p style="font-size:11px;color:var(--text3);text-align:center;line-height:1.6">
-      If you are not redirected automatically,
-      <a href="#" onclick="window.__manualOAuth();return false;" style="color:var(--accent-l)">click here</a>
+    <p class="setup-sub">GSC + GA4 in one place. Runs entirely in your browser — free forever.</p>
+    <button class="btn-connect" id="btn-signin" style="margin-top:8px">
+      <svg width="18" height="18" viewBox="0 0 18 18" style="vertical-align:middle;margin-right:8px"><path fill="#fff" d="M9 3.48c1.69 0 2.83.73 3.48 1.34l2.54-2.48C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.96l2.91 2.26C4.6 5.05 6.62 3.48 9 3.48z"/><path fill="#fff" d="M17.64 9.2c0-.74-.06-1.28-.19-1.84H9v3.34h4.96c-.1.83-.64 2.08-1.84 2.92l2.84 2.2c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#fff" d="M3.88 10.78A5.54 5.54 0 0 1 3.58 9c0-.62.11-1.22.29-1.78L.96 4.96A9.008 9.008 0 0 0 0 9c0 1.45.35 2.82.96 4.04l2.92-2.26z"/><path fill="#fff" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.84-2.2c-.76.53-1.78.9-3.12.9-2.38 0-4.4-1.57-5.12-3.74L.97 13.04C2.45 15.98 5.48 18 9 18z"/></svg>
+      Sign in with Google
+    </button>
+    <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:20px;line-height:1.7">
+      You only need to sign in once per session.<br>
+      Your data never leaves your browser.
     </p>`;
 
-  // short delay so user sees the message, then redirect
-  setTimeout(() => {
+  document.getElementById('btn-signin').addEventListener('click', () => {
     S.clientId = CLIENT_ID;
     doOAuth();
-  }, 600);
-};
+  });
+}
 
-window.__manualOAuth = () => {
-  S.clientId = CLIENT_ID;
-  doOAuth();
-};
+// Run immediately when module loads — no waiting for window.onload
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 
 async function showApp() {
   document.getElementById('setup-overlay').style.display = 'none';
@@ -81,17 +83,7 @@ async function showApp() {
 // ── EXPOSE TO HTML (inline onclick handlers) ──
 // ES Modules are scoped — functions must be on window to be callable from HTML attributes.
 
-window.__connect = () => {
-  const v = document.getElementById('cid-input').value.trim();
-  if (!v || !v.includes('.apps.googleusercontent.com')) {
-    const e = document.getElementById('setup-err');
-    e.textContent = 'Please enter a valid OAuth Client ID.';
-    e.style.display = 'block';
-    return;
-  }
-  S.clientId = v;
-  doOAuth();
-};
+// __connect removed — Client ID is hardcoded in config.js
 
 window.__signOut        = signOut;
 window.__loadAll        = loadAll;

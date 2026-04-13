@@ -15,17 +15,11 @@
 <div id="setup-overlay">
   <div class="setup-card">
     <div class="setup-logo">SEO·IQ</div>
-    <div class="setup-sub">GSC + GA4 in one place. Runs entirely in your browser — free forever.</div>
-    <div class="steps-box">
-      <div class="steps-ttl">One-time setup</div>
-      <div class="step"><span class="sn">1</span><span>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud → Credentials</a> → create OAuth 2.0 Client ID (Web application).</span></div>
-      <div class="step"><span class="sn">2</span><span>JS Origin: <code>https://farazified.github.io</code> — Redirect URI: <code>https://farazified.github.io/SEOdashboard/</code></span></div>
-      <div class="step"><span class="sn">3</span><span>OAuth consent → External → add your email as test user. Enable Search Console API, Analytics Data API &amp; Admin API.</span></div>
-    </div>
-    <label class="setup-lbl">Google OAuth Client ID</label>
-    <input type="text" class="setup-inp" id="cid-input" placeholder="123456789-xxxx.apps.googleusercontent.com"/>
-    <div id="setup-err" style="display:none" class="setup-err"></div>
-    <button class="btn-connect" onclick="window.__connect()">Connect with Google →</button>
+    <p class="setup-sub">GSC + GA4 in one place. Runs entirely in your browser — free forever.</p>
+    <button class="btn-connect" id="btn-signin" style="margin-top:8px">Sign in with Google →</button>
+    <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:20px;line-height:1.7">
+      You only need to sign in once per session.<br>Your data never leaves your browser.
+    </p>
   </div>
 </div>
 
@@ -176,6 +170,31 @@
       </div>
     </div>
 
+    <!-- Keyword detail panel (shown on keyword click) -->
+    <div id="kw-detail-panel" style="display:none" class="kw-detail-panel">
+      <div class="kw-detail-header">
+        <div>
+          <div class="kw-detail-title" id="kw-detail-title"></div>
+          <div class="kw-detail-sub">Last 12 months · GSC data</div>
+        </div>
+        <button class="drill-cls" onclick="window.__closeKwDetail()">✕ Close</button>
+      </div>
+      <div class="kw-detail-charts">
+        <div class="kw-detail-chart-wrap">
+          <div class="kw-detail-chart-lbl">Clicks</div>
+          <canvas id="kw-clicks-chart" height="80"></canvas>
+        </div>
+        <div class="kw-detail-chart-wrap">
+          <div class="kw-detail-chart-lbl">Impressions</div>
+          <canvas id="kw-impr-chart" height="80"></canvas>
+        </div>
+        <div class="kw-detail-chart-wrap">
+          <div class="kw-detail-chart-lbl">Avg. Position</div>
+          <canvas id="kw-pos-chart" height="80"></canvas>
+        </div>
+      </div>
+    </div>
+
     <!-- Keyword table -->
     <div class="kw-panel">
       <div class="kw-ph">
@@ -192,16 +211,16 @@
       <div class="kw-scroll-wrap">
         <table class="dt">
           <thead class="sticky-head"><tr>
-            <th onclick="window.__sortQ('query')">#  Keyword</th>
-            <th onclick="window.__sortQ('clicks')">Clicks ↕</th>
-            <th onclick="window.__sortQ('delta')">Clicks PoP ↕</th>
-            <th onclick="window.__sortQ('deltaYoy')">Clicks YoY ↕</th>
-            <th onclick="window.__sortQ('impressions')">Impr. ↕</th>
-            <th onclick="window.__sortQ('deltaImprPop')">Impr. PoP ↕</th>
-            <th onclick="window.__sortQ('deltaImprYoy')">Impr. YoY ↕</th>
-            <th onclick="window.__sortQ('position')">Avg. Pos. ↕</th>
-            <th onclick="window.__sortQ('deltaPosPop')">Pos. PoP ↕</th>
-            <th onclick="window.__sortQ('deltaPosYoy')">Pos. YoY ↕</th>
+            <th data-col="query"       onclick="window.__sortQ('query')">#  Keyword</th>
+            <th data-col="clicks"      onclick="window.__sortQ('clicks')">Clicks</th>
+            <th data-col="delta"       onclick="window.__sortQ('delta')">Clicks PoP</th>
+            <th data-col="deltaYoy"    onclick="window.__sortQ('deltaYoy')">Clicks YoY</th>
+            <th data-col="impressions" onclick="window.__sortQ('impressions')">Impr.</th>
+            <th data-col="deltaImprPop" onclick="window.__sortQ('deltaImprPop')">Impr. PoP</th>
+            <th data-col="deltaImprYoy" onclick="window.__sortQ('deltaImprYoy')">Impr. YoY</th>
+            <th data-col="position"    onclick="window.__sortQ('position')">Avg. Pos.</th>
+            <th data-col="deltaPosPop" onclick="window.__sortQ('deltaPosPop')">Pos. PoP</th>
+            <th data-col="deltaPosYoy" onclick="window.__sortQ('deltaPosYoy')">Pos. YoY</th>
             <th>CTR</th>
           </tr></thead>
           <tbody id="kw-body"></tbody>
@@ -210,10 +229,71 @@
     </div>
 
   </div>
+
+  <!-- ── KEYWORD DETAIL MODAL ── -->
+  <div id="kw-modal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px;">
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:20px;width:100%;max-width:860px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.7);">
+      <!-- header -->
+      <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--bg2);z-index:10;border-radius:20px 20px 0 0;">
+        <div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--sans);font-weight:600;margin-bottom:3px;">Keyword detail — last 12 months</div>
+          <div id="kw-modal-title" style="font-family:var(--sans);font-size:18px;font-weight:700;color:var(--text);"></div>
+        </div>
+        <button onclick="window.__closeKwChart()" style="margin-left:auto;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:13px;padding:7px 14px;cursor:pointer;font-family:var(--body);">✕ Close</button>
+      </div>
+
+      <!-- loading -->
+      <div id="kw-modal-loading" style="display:flex;align-items:center;justify-content:center;padding:60px;">
+        <div style="text-align:center;color:var(--text3);font-size:12px;font-family:var(--body);">
+          <div class="skel" style="width:120px;height:10px;margin:0 auto 10px"></div>
+          <div class="skel" style="width:80px;height:8px;margin:0 auto"></div>
+        </div>
+      </div>
+
+      <!-- charts -->
+      <div id="kw-modal-charts" style="display:none;padding:20px 22px 24px;">
+        <!-- summary stats -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px;">
+          <div style="background:var(--bg3);border-radius:10px;padding:14px 16px;border:1px solid var(--border);">
+            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--sans);font-weight:600;margin-bottom:6px;">Total Clicks</div>
+            <div id="kw-stat-clicks" style="font-family:var(--sans);font-size:20px;font-weight:800;color:#7c6dfa;">—</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:10px;padding:14px 16px;border:1px solid var(--border);">
+            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--sans);font-weight:600;margin-bottom:6px;">Total Impressions</div>
+            <div id="kw-stat-impr" style="font-family:var(--sans);font-size:20px;font-weight:800;color:#5b9cf6;">—</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:10px;padding:14px 16px;border:1px solid var(--border);">
+            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--sans);font-weight:600;margin-bottom:6px;">Avg. Position</div>
+            <div id="kw-stat-pos" style="font-family:var(--sans);font-size:20px;font-weight:800;color:#f5a623;">—</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:10px;padding:14px 16px;border:1px solid var(--border);">
+            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--sans);font-weight:600;margin-bottom:6px;">Avg. CTR</div>
+            <div id="kw-stat-ctr" style="font-family:var(--sans);font-size:20px;font-weight:800;color:var(--green);">—</div>
+          </div>
+        </div>
+
+        <!-- 3 charts -->
+        <div style="margin-bottom:18px;">
+          <div style="font-size:11px;font-weight:600;color:var(--text2);font-family:var(--sans);margin-bottom:8px;">Clicks</div>
+          <div style="height:140px;"><canvas id="kw-chart-clicks"></canvas></div>
+        </div>
+        <div style="margin-bottom:18px;">
+          <div style="font-size:11px;font-weight:600;color:var(--text2);font-family:var(--sans);margin-bottom:8px;">Impressions</div>
+          <div style="height:140px;"><canvas id="kw-chart-impr"></canvas></div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--text2);font-family:var(--sans);margin-bottom:8px;">Avg. Position <span style="font-size:10px;color:var(--text3);font-weight:400">(lower is better)</span></div>
+          <div style="height:140px;"><canvas id="kw-chart-pos"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- Chart.js (must load before app.js) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script type="module" src="app.js"></script>
+<script type="module" src="keyword-chart.js"></script>
 </body>
 </html>
