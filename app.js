@@ -22,12 +22,13 @@ import {
 // ── BOOT ──────────────────────────────────────
 
 window.onload = async () => {
-  // restore saved brand terms
   const bt = localStorage.getItem('seo_brand');
   if (bt) document.getElementById('brand-terms').value = bt;
-
   renderCountryOpts('');
   restoreWidgetPositions();
+
+  // always ensure clientId is set from config
+  S.clientId = CLIENT_ID;
 
   // handle OAuth token coming back in the URL hash
   if (handleOAuthRedirect()) {
@@ -35,16 +36,38 @@ window.onload = async () => {
     return;
   }
 
-  // already have a valid session token
+  // already have a valid session token in this tab
   const tok = sessionStorage.getItem('seo_tok');
   if (tok) {
     S.token = tok;
-    S.clientId = CLIENT_ID;
     await showApp();
     return;
   }
 
-  // no token — go straight to Google sign-in (Client ID is hardcoded)
+  // no token — show redirect message then go to Google sign-in
+  const overlay = document.getElementById('setup-overlay');
+  const card    = overlay.querySelector('.setup-card');
+  card.innerHTML = `
+    <div class="setup-logo">SEO·IQ</div>
+    <div class="setup-sub" style="text-align:center;margin-bottom:32px">Connecting to Google…</div>
+    <div style="text-align:center;margin-bottom:28px">
+      <div class="skel" style="width:48px;height:48px;border-radius:50%;margin:0 auto 16px;background:linear-gradient(135deg,var(--accent),var(--accent-l))"></div>
+      <div style="font-size:13px;color:var(--text3)">Redirecting to Google sign-in</div>
+    </div>
+    <p style="font-size:11px;color:var(--text3);text-align:center;line-height:1.6">
+      If you are not redirected automatically,
+      <a href="#" onclick="window.__manualOAuth();return false;" style="color:var(--accent-l)">click here</a>
+    </p>`;
+
+  // short delay so user sees the message, then redirect
+  setTimeout(() => {
+    S.clientId = CLIENT_ID;
+    doOAuth();
+  }, 600);
+};
+
+window.__manualOAuth = () => {
+  S.clientId = CLIENT_ID;
   doOAuth();
 };
 
