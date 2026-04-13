@@ -192,9 +192,26 @@ export function renderAll() {
 // ── BADGE HELPER ──────────────────────────────
 
 function mkBadge(v, inv) {
-  if (v == null) return '—';
+  if (v == null) return '<span class="badge fl">—</span>';
   const cls = (inv ? v < 0 : v > 0) ? 'up' : 'dn';
   return `<span class="badge ${cls}">${v > 0 ? '+' : ''}${v.toFixed(1)}%</span>`;
+}
+
+// ── HEATMAP HELPER ────────────────────────────
+// assigns data-heat attribute based on rank within column
+
+function applyHeatmap() {
+  // clicks column (index 1) and impressions (index 4)
+  [1, 4].forEach(colIdx => {
+    const cells = [...document.querySelectorAll(`#kw-body tr td:nth-child(${colIdx + 1}).num-cell`)];
+    if (!cells.length) return;
+    const vals = cells.map(c => parseFloat(c.textContent.replace(/[K M,]/g, v => v==='K'?'e3':v==='M'?'e6':'')) || 0);
+    const max = Math.max(...vals);
+    cells.forEach((c, i) => {
+      const pct = max > 0 ? vals[i] / max : 0;
+      c.dataset.heat = pct > .8 ? 'h5' : pct > .6 ? 'h4' : pct > .4 ? 'h3' : pct > .2 ? 'h2' : 'h1';
+    });
+  });
 }
 
 // ── KEYWORD TABLE ─────────────────────────────
@@ -222,7 +239,7 @@ export function renderKeywords() {
     const rowCls  = isOpp ? ' class="opp-row"' : '';
     const oppTag  = isOpp ? '<span class="opp-badge">opportunity</span>' : '';
     return `<tr${rowCls}>
-      <td><span class="rn">${i + 1}</span><span class="kwc" style="display:inline-block" title="${r.query}">${r.query}</span>${bb}${oppTag}</td>
+      <td><span class="rn">${i + 1}</span><span class="kwc" title="${r.query}">${r.query}</span>${bb}${oppTag}</td>
       <td class="num-cell">${fmt(r.clicks)}</td>
       <td>${mkBadge(r.delta,        false)}</td>
       <td>${mkBadge(r.deltaYoy,     false)}</td>
@@ -235,6 +252,7 @@ export function renderKeywords() {
       <td class="num-cell">${(r.ctr * 100).toFixed(2)}%</td>
     </tr>`;
   }).join('');
+  requestAnimationFrame(applyHeatmap);
 }
 
 // ── WINNERS / LOSERS ──────────────────────────
