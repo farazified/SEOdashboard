@@ -16,7 +16,7 @@ export const S = {
   kwTab:       'all',
   qSort:       { col: 'clicks', dir: -1 },
   hideBranded: false,
-  cmpMode:     'pop',
+  cmpMode:     'both',
   clicksChart: null,
   posChart:    null,
 };

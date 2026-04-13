@@ -113,6 +113,8 @@ async function showApp() {
   document.getElementById('app').style.display = 'block';
   renderCountryOpts('');
   restoreWidgetPos();
+  // sync comparison toggle to match state default ('both')
+  document.querySelectorAll('.cmp-btn').forEach(b => b.classList.toggle('active', b.dataset.cmp === S.cmpMode));
   await Promise.all([loadGscProps(), loadGa4Props()]);
   loadAll();
 }

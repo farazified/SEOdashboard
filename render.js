@@ -75,19 +75,39 @@ export function recalcFiltered() {
   const fImPop=fmtD(fIm, filt.reduce((a,r)=>a+(r.prevImpr||0),0));
   const fImYoy=fmtD(fIm, filt.reduce((a,r)=>a+(r.yoyImpr||0),0));
 
-  const fd = (el, fVal, tVal, pop, yoy, saved, inv) => {
+  const fd = (el, fVal, pop, yoy, extraHtml, inv) => {
     document.getElementById(el).textContent = fVal;
     document.getElementById(el).className = 'fval'+(hasF?' has-filter':'');
-    let html = hasF && saved!=null ? `<span class="fdiff saved">${saved}</span>` : '';
+    let html = extraHtml || '';
     html += (sp && pop!=null ? dRow('PoP',pop,inv) : '') + (sy && yoy!=null ? dRow('YoY',yoy,inv) : '');
     document.getElementById(el+'-diff').innerHTML = html || '<span class="fdiff">same as total</span>';
   };
 
-  fd('fv-cl', fmt(fCl), fmt(tCl), fClPop, fClYoy, hasF?`−${fmt(tCl-fCl)} branded`:null, false);
-  fd('fv-im', fmt(fIm), fmt(tIm), fImPop, fImYoy, hasF?`−${fmt(tIm-fIm)} branded`:null, false);
-  fd('fv-pos', fPos!=null?fPos.toFixed(1):'—', null, null, null,
-    hasF&&fPos&&tPos?`${(+(fPos-tPos).toFixed(1))>0?'+':''}${(fPos-tPos).toFixed(1)} vs total`:null, false);
-  fd('fv-ctr', fCtr!=null?(fCtr*100).toFixed(2)+'%':'—', null, null, null, null, false);
+  // clicks: show % of total + mini bar
+  const clPct = tCl>0 ? (fCl/tCl*100).toFixed(1) : null;
+  const clExtra = hasF
+    ? `<div class="filt-pct-row"><div class="filt-bar-wrap"><div class="filt-bar" style="width:${clPct}%"></div></div><span class="fdiff saved">${clPct}% of total</span></div>`
+    : '';
+  fd('fv-cl', fmt(fCl), fClPop, fClYoy, clExtra, false);
+
+  // impressions: same
+  const imPct = tIm>0 ? (fIm/tIm*100).toFixed(1) : null;
+  const imExtra = hasF
+    ? `<div class="filt-pct-row"><div class="filt-bar-wrap"><div class="filt-bar" style="width:${imPct}%"></div></div><span class="fdiff saved">${imPct}% of total</span></div>`
+    : '';
+  fd('fv-im', fmt(fIm), fImPop, fImYoy, imExtra, false);
+
+  // position
+  const posDiff = fPos!=null&&tPos!=null ? +(fPos-tPos).toFixed(1) : null;
+  const posExtra = hasF&&posDiff!=null
+    ? `<span class="fdiff ${posDiff<0?'saved':'fdiff'}">${posDiff>0?'+':''}${posDiff} vs total (lower = better)</span>` : '';
+  fd('fv-pos', fPos!=null?fPos.toFixed(1):'—', null, null, posExtra, true);
+
+  // CTR
+  const ctrDiff = fCtr!=null&&tCtr!=null ? +((fCtr-tCtr)*100).toFixed(2) : null;
+  const ctrExtra = hasF&&ctrDiff!=null
+    ? `<span class="fdiff ${ctrDiff>0?'saved':''}">${ctrDiff>0?'+':''}${ctrDiff}% vs total</span>` : '';
+  fd('fv-ctr', fCtr!=null?(fCtr*100).toFixed(2)+'%':'—', METRICS.ctrPop, METRICS.ctrYoy, ctrExtra, false);
 
   // recalc clicks deltas with filtered set
   METRICS.clicksPop = fClPop; METRICS.clicksYoy = fClYoy;
@@ -275,8 +295,14 @@ export function exportCsv() {
 
 // ── KEYWORD SPARKLINE MODAL ──
 
+// keyword sparkline all-data cache
+let _kwAllRows = [];
+let _kwActive  = null;
+let _kwChart   = null;
+
 export async function showKwChart(keyword) {
   document.getElementById('kw-modal')?.remove();
+  _kwAllRows = []; _kwActive = keyword;
 
   const modal = document.createElement('div');
   modal.id = 'kw-modal';
@@ -286,7 +312,13 @@ export async function showKwChart(keyword) {
       <div class="kw-modal-hdr">
         <div>
           <div class="kw-modal-title">${keyword}</div>
-          <div class="kw-modal-sub">Last 12 months · Clicks, Impressions &amp; Avg. Position</div>
+          <div class="kw-modal-sub">Clicks, Impressions &amp; Avg. Position</div>
+        </div>
+        <div class="kw-range-pills">
+          <button class="kw-pill" data-days="7">7d</button>
+          <button class="kw-pill" data-days="30">30d</button>
+          <button class="kw-pill" data-days="90">3m</button>
+          <button class="kw-pill active" data-days="365">12m</button>
         </div>
         <button class="kw-modal-close" onclick="document.getElementById('kw-modal').remove()">✕</button>
       </div>
@@ -297,6 +329,17 @@ export async function showKwChart(keyword) {
   modal.addEventListener('click', () => modal.remove());
   document.body.appendChild(modal);
 
+  // range pill click
+  modal.querySelectorAll('.kw-pill').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      modal.querySelectorAll('.kw-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _renderKwChart(parseInt(btn.dataset.days));
+    });
+  });
+
+  // fetch 12 months up front, then slice for range
   try {
     const { GSC_BASE } = await import('./config.js');
     const tok  = sessionStorage.getItem('seo_tok');
@@ -307,52 +350,82 @@ export async function showKwChart(keyword) {
     const start = new Date(end); start.setFullYear(start.getFullYear()-1);
     const ds    = d => d.toISOString().split('T')[0];
 
-    const body = {
-      startDate: ds(start), endDate: ds(end),
-      dimensions: ['date'], rowLimit: 365,
-      dimensionFilterGroups: [{ filters: [{ dimension:'query', operator:'equals', expression: keyword }] }],
-    };
     const res = await fetch(
       `${GSC_BASE}/sites/${encodeURIComponent(site)}/searchAnalytics/query`,
-      { method:'POST', headers:{ Authorization:'Bearer '+tok, 'Content-Type':'application/json' }, body: JSON.stringify(body) }
+      { method:'POST', headers:{ Authorization:'Bearer '+tok, 'Content-Type':'application/json' },
+        body: JSON.stringify({ startDate:ds(start), endDate:ds(end), dimensions:['date'], rowLimit:365,
+          dimensionFilterGroups:[{filters:[{dimension:'query',operator:'equals',expression:keyword}]}] }) }
     );
     if (!res.ok) throw new Error('API error '+res.status);
-    const data  = await res.json();
-    const rows  = (data.rows||[]).sort((a,b)=>a.keys[0].localeCompare(b.keys[0]));
-    const labels= rows.map(r=>{ const d=new Date(r.keys[0]+'T00:00:00'); return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}); });
-
-    const body2 = document.getElementById('kw-modal-body');
-    body2.innerHTML = '<canvas id="kw-spark" style="width:100%;height:260px"></canvas>';
-
-    new Chart(document.getElementById('kw-spark'), {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          { label:'Clicks',       data:rows.map(r=>r.clicks),              borderColor:'#7c6dfa', backgroundColor:'rgba(124,109,250,0.07)', fill:true,  borderWidth:2.5, pointRadius:0, tension:.4, yAxisID:'yL' },
-          { label:'Impressions',  data:rows.map(r=>r.impressions),         borderColor:'#5b9cf6', backgroundColor:'transparent',             fill:false, borderWidth:1.5, borderDash:[4,3], pointRadius:0, tension:.4, yAxisID:'yL' },
-          { label:'Avg. Position',data:rows.map(r=>+r.position.toFixed(1)),borderColor:'#f5a623', backgroundColor:'transparent',             fill:false, borderWidth:2,   borderDash:[2,4], pointRadius:0, tension:.4, yAxisID:'yR' },
-        ],
-      },
-      options: {
-        responsive:true, maintainAspectRatio:false,
-        plugins:{
-          legend:{ display:true, position:'top', labels:{ color:'#9090a8', font:{family:'Inter',size:10}, boxWidth:8, padding:14 }},
-          tooltip:{ mode:'index', intersect:false, backgroundColor:'rgba(26,26,36,.97)', borderColor:'rgba(255,255,255,.1)', borderWidth:1, titleColor:'#9090a8', bodyColor:'#e8e8f0', titleFont:{family:'Inter',size:10}, bodyFont:{family:'Inter',size:11}, padding:10 },
-        },
-        scales:{
-          x:  { grid:{color:'rgba(255,255,255,.04)',drawBorder:false}, ticks:{color:'#55556a',font:{family:'Inter',size:9},maxTicksLimit:10} },
-          yL: { position:'left',  grid:{color:'rgba(255,255,255,.04)',drawBorder:false}, ticks:{color:'#7c6dfa',font:{family:'Inter',size:9},maxTicksLimit:5} },
-          yR: { position:'right', reverse:true, grid:{drawOnChartArea:false}, ticks:{color:'#f5a623',font:{family:'Inter',size:9},maxTicksLimit:5} },
-        },
-        interaction:{ mode:'index', intersect:false },
-      },
-    });
+    const data = await res.json();
+    _kwAllRows = (data.rows||[]).sort((a,b)=>a.keys[0].localeCompare(b.keys[0]));
+    _renderKwChart(365);
   } catch(e) {
-    document.getElementById('kw-modal-body').innerHTML =
-      `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Could not load data</div><div class="empty-sub">${e.message}</div></div>`;
+    const b = document.getElementById('kw-modal-body');
+    if (b) b.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Could not load data</div><div class="empty-sub">${e.message}</div></div>`;
   }
 }
+
+function rollingAvg(arr, w=7) {
+  return arr.map((_,i) => {
+    const slice = arr.slice(Math.max(0,i-w+1), i+1);
+    return +(slice.reduce((a,b)=>a+b,0)/slice.length).toFixed(2);
+  });
+}
+
+function _renderKwChart(days) {
+  const modal = document.getElementById('kw-modal');
+  if (!modal || _kwActive === null) return;
+
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days - 3);
+  const rows   = _kwAllRows.filter(r => new Date(r.keys[0]+'T00:00:00') >= cutoff);
+
+  const body = document.getElementById('kw-modal-body');
+  if (!body) return;
+  body.innerHTML = '<canvas id="kw-spark" style="width:100%;height:260px"></canvas>';
+  if (_kwChart) { try { _kwChart.destroy(); } catch{} _kwChart=null; }
+
+  const labels   = rows.map(r => new Date(r.keys[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}));
+  const clicks   = rows.map(r=>r.clicks);
+  const impr     = rows.map(r=>r.impressions);
+  const pos      = rows.map(r=>+r.position.toFixed(1));
+  const clicksMA = rollingAvg(clicks, 7);
+
+  _kwChart = new Chart(document.getElementById('kw-spark'), {
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        { label:'Clicks',          data:clicks,   borderColor:'rgba(124,109,250,.35)', backgroundColor:'transparent', fill:false, borderWidth:1, pointRadius:0, tension:.3, yAxisID:'yL' },
+        { label:'Clicks (7d avg)', data:clicksMA, borderColor:'#7c6dfa',              backgroundColor:'rgba(124,109,250,0.08)', fill:true, borderWidth:2.5, pointRadius:0, tension:.4, yAxisID:'yL' },
+        { label:'Impressions',     data:impr,     borderColor:'#5b9cf6',              backgroundColor:'transparent', fill:false, borderWidth:1.5, borderDash:[4,3], pointRadius:0, tension:.4, yAxisID:'yL' },
+        { label:'Avg. Position',   data:pos,      borderColor:'#f5a623',              backgroundColor:'transparent', fill:false, borderWidth:2, borderDash:[2,4], pointRadius:0, tension:.4, yAxisID:'yR' },
+      ],
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ display:true, position:'top', labels:{ color:'#9090a8', font:{family:'Inter',size:10}, boxWidth:8, padding:12 }},
+        tooltip:{ mode:'index', intersect:false, backgroundColor:'rgba(26,26,36,.97)', borderColor:'rgba(255,255,255,.1)', borderWidth:1, titleColor:'#9090a8', bodyColor:'#e8e8f0', titleFont:{family:'Inter',size:10}, bodyFont:{family:'Inter',size:11}, padding:10 },
+      },
+      scales:{
+        x:  { grid:{color:'rgba(255,255,255,.04)',drawBorder:false}, ticks:{color:'#55556a',font:{family:'Inter',size:9},maxTicksLimit:10} },
+        yL: { position:'left',  grid:{color:'rgba(255,255,255,.04)',drawBorder:false}, ticks:{color:'#7c6dfa',font:{family:'Inter',size:9},maxTicksLimit:5}, title:{display:true,text:'Clicks / Impr.',color:'#55556a',font:{size:9}} },
+        yR: { position:'right', reverse:true, grid:{drawOnChartArea:false}, ticks:{color:'#f5a623',font:{family:'Inter',size:9},maxTicksLimit:5}, title:{display:true,text:'Position (lower = better)',color:'#f5a623',font:{size:9}} },
+      },
+      interaction:{ mode:'index', intersect:false },
+    },
+  });
+}
+
+
+// ── ESCAPE KEY clears keyword filter ──
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const inp = document.getElementById('kw-search');
+    if (inp && inp.value) { inp.value = ''; renderKeywords(); }
+  }
+});
 
 // ── PICKERS ──
 

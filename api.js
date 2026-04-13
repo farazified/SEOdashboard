@@ -31,6 +31,9 @@ export function handleOAuthRedirect() {
 export function signOut() {
   sessionStorage.removeItem('seo_tok');
   S.token = null;
+  // show reconnect banner instead of hard reload
+  const banner = document.getElementById('session-banner');
+  if (banner) { banner.style.display = 'flex'; return; }
   location.reload();
 }
 
@@ -41,7 +44,7 @@ async function req(url, opts = {}) {
     ...opts,
     headers: { Authorization: 'Bearer ' + S.token, 'Content-Type': 'application/json' },
   });
-  if (r.status === 401) { signOut(); throw new Error('Session expired'); }
+  if (r.status === 401) { signOut(); throw new Error('Session expired — please reconnect'); }
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -100,7 +103,11 @@ export async function loadGa4Props() {
 // ── MAIN LOAD ──
 
 export async function loadAll() {
-  const uf    = document.getElementById('url-filter').value.trim();
+  // normalize URL filter: strip domain + trailing slash
+  const rawUrl = document.getElementById('url-filter').value.trim();
+  const normUrl = rawUrl.replace(/^https?:\/\/[^\/]+/, '').replace(/\/+$/, '');
+  if (normUrl !== rawUrl) document.getElementById('url-filter').value = normUrl;
+  const uf    = normUrl;
   const dates = getDates();
 
   document.getElementById('section-title').textContent =
@@ -136,7 +143,8 @@ function setLoadingSkeletons() {
 
 export async function loadGsc(site) {
   const { start, end, popStart, popEnd, yoyStart, yoyEnd } = getDates();
-  const uf = document.getElementById('url-filter').value.trim();
+  const uf = document.getElementById('url-filter').value.trim()
+    .replace(/^https?:\/\/[^\/]+/, '').replace(/\/+$/, '');
   const pf = uf ? [{ dimension: 'page', operator: 'contains', expression: uf }] : null;
   const cf = S.selCountry ? [{ dimension: 'country', operator: 'equals', expression: S.selCountry }] : null;
   const af = [...(pf||[]), ...(cf||[])];
@@ -226,7 +234,11 @@ export async function loadGsc(site) {
 
 export async function loadGa4(propId) {
   const { start, end, popStart, popEnd, yoyStart, yoyEnd } = getDates();
-  const uf = document.getElementById('url-filter').value.trim();
+  const rawUf = document.getElementById('url-filter').value.trim();
+  // strip domain if user pasted full URL, normalize trailing slash
+  const uf = rawUf
+    .replace(/^https?:\/\/[^\/]+/, '')   // remove https://domain.com
+    .replace(/\/+$/, '');                    // remove trailing slashes
 
   const orgF = { orGroup: { expressions: [
     { filter: { fieldName: 'sessionDefaultChannelGroup', stringFilter: { matchType: 'EXACT', value: 'Organic Search' }}},

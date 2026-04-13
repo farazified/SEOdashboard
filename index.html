@@ -77,6 +77,10 @@
   <!-- PAGE -->
   <div class="page">
     <div id="err-banner" class="alert" style="display:none"></div>
+    <div id="session-banner" class="session-banner" style="display:none">
+      <span>⏱ Session expired — your Google token has expired.</span>
+      <button onclick="window._signIn()" class="session-reconnect">Reconnect →</button>
+    </div>
 
     <!-- drill bar -->
     <div id="drill-bar" style="display:none" class="drill-bar">
@@ -90,9 +94,9 @@
       <span id="section-title" class="section-lbl">Overview — sitewide</span>
       <span id="date-lbl" class="date-lbl"></span>
       <div class="cmp-group">
-        <button class="cmp-btn active" data-cmp="pop"  onclick="window._setCmp('pop')">PoP</button>
+        <button class="cmp-btn"        data-cmp="pop"  onclick="window._setCmp('pop')">PoP</button>
         <button class="cmp-btn"        data-cmp="yoy"  onclick="window._setCmp('yoy')">YoY</button>
-        <button class="cmp-btn"        data-cmp="both" onclick="window._setCmp('both')">Both</button>
+        <button class="cmp-btn active" data-cmp="both" onclick="window._setCmp('both')">Both</button>
       </div>
     </div>
 
@@ -177,7 +181,7 @@
           <button class="kwtab"        data-kw="up"  onclick="window._setKwTab('up')">↑ Rising</button>
           <button class="kwtab"        data-kw="dn"  onclick="window._setKwTab('dn')">↓ Falling</button>
         </div>
-        <input class="pf" id="kw-search" type="text" placeholder="Filter keywords…" oninput="window._renderKws()"/>
+        <input class="pf" id="kw-search" type="text" placeholder="Filter keywords…" oninput="window._renderKws()" onkeydown="if(event.key==='Escape'){this.value='';window._renderKws();}"  />
         <button class="btn-csv" onclick="window._exportCsv()">↓ CSV</button>
         <span class="organic-tag">GA4 = organic only</span>
       </div>
