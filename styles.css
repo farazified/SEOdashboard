@@ -215,8 +215,8 @@ canvas       { display: block; width: 100% !important; }
 .wl-badge.dn { background: var(--red-d);   color: var(--red);   border: 1px solid rgba(240,96,112,.22); }
 
 /* ── KEYWORD TABLE ───────────────────────────── */
-.kw-panel  { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--r2); overflow: hidden; margin-bottom: 18px; }
-.kw-ph     { padding: 11px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--bg3); }
+.kw-panel  { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--r2); overflow: visible; margin-bottom: 18px; }
+.kw-ph     { padding: 11px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--bg3); border-radius: var(--r2) var(--r2) 0 0; }
 .kw-ttl    { font-family: var(--sans); font-size: 13px; font-weight: 600; color: var(--text); flex-shrink: 0; }
 .kwtabs    { display: flex; gap: 3px; flex-shrink: 0; }
 .kwtab     { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text3); font-family: var(--sans); font-size: 10px; font-weight: 500; padding: 3px 9px; cursor: pointer; transition: all .12s; }
@@ -297,11 +297,18 @@ canvas       { display: block; width: 100% !important; }
 .skel-card   { padding: 12px 14px; border-bottom: 1px solid var(--border); }
 
 /* ── STICKY TABLE HEADER ─────────────────────── */
+.kw-scroll-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 70vh;
+  border-radius: 0 0 var(--r2) var(--r2);
+}
 .sticky-head th {
   position: sticky;
-  top: 52px; /* height of topbar */
+  top: 0;
   z-index: 10;
   background: var(--bg3);
+  box-shadow: 0 1px 0 var(--border2);
 }
 
 /* ── DATE RANGE LABEL ────────────────────────── */
