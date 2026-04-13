@@ -1,107 +1,136 @@
 // ─────────────────────────────────────────────
-//  charts.js  –  Chart.js configuration
-//  To change chart colours, styles, or add a
-//  new chart: edit this file only.
+//  app.js  –  entry point & wiring
+//  This file imports all modules and connects
+//  them. It also exposes functions to the HTML
+//  via window.__ so inline onclick handlers work
+//  with ES Modules (which are scoped by default).
 // ─────────────────────────────────────────────
 
-import { S } from './state.js';
+import { CLIENT_ID }                           from './config.js';
+import { S }                                   from './state.js';
+import { doOAuth, handleOAuthRedirect, signOut, loadGscProps, loadGa4Props, loadAll } from './api.js';
+import {
+  renderAll, renderKeywords, renderWinners, renderLosers,
+  renderPropOpts, renderCountryOpts,
+  recalcMetricsFromFiltered, updateDeltas, setCmp,
+  getBrandTerms, filtBrand, isBrand,
+  startDrag, startResize, restoreWidgetPositions,
+  setLoading, sortQ, exportCsv,
+} from './render.js';
 
-export function buildCharts(curR, popR, yoyR) {
-  const toMap  = rows => { const m = {}; rows.forEach(r => m[r.keys[0]] = r); return m; };
-  const dates  = curR.map(r => r.keys[0]).sort();
-  const pMap   = toMap(popR), yMap = toMap(yoyR);
-  const labels = dates.map(d => {
-    // "4 Apr" format
-    const dt = new Date(d + 'T00:00:00');
-    return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  });
-  // Charts always show all 3 lines — cmpMode only affects the metric cards
-  const showP = true;
-  const showY = true;
+// ── BOOT ──────────────────────────────────────
 
-  destroyCharts();
+window.onload = async () => {
+  // restore saved brand terms
+  const bt = localStorage.getItem('seo_brand');
+  if (bt) document.getElementById('brand-terms').value = bt;
 
-  // ── Clicks chart ──
-  const cDs = [{
-    label: 'Current period',
-    data: dates.map(d => curR.find(r => r.keys[0] === d)?.clicks || 0),
-    borderColor: '#7c6dfa', backgroundColor: 'rgba(124,109,250,0.08)',
-    fill: true, borderWidth: 2.5, pointRadius: 0, tension: .4,
-  }];
-  if (showP) cDs.push({
-    label: 'Previous period',
-    data: dates.map(d => pMap[shiftDate(d, S.days)]?.clicks || 0),
-    borderColor: '#5b9cf6', backgroundColor: 'transparent',
-    borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, tension: .4,
-  });
-  if (showY) cDs.push({
-    label: 'Previous year',
-    data: dates.map(d => yMap[shiftYear(d, -1)]?.clicks || 0),
-    borderColor: '#f06070', backgroundColor: 'transparent',
-    borderWidth: 1.5, borderDash: [2, 4], pointRadius: 0, tension: .4,
-  });
-  S.clicksChart = new Chart(document.getElementById('clicks-chart'), {
-    type: 'line', data: { labels, datasets: cDs }, options: chartOpts(false),
-  });
-  renderLegend('cl-legend', cDs);
+  renderCountryOpts('');
+  restoreWidgetPositions();
 
-  // ── Position chart ──
-  const pDs = [{
-    label: 'Current period',
-    data: dates.map(d => curR.find(r => r.keys[0] === d)?.position?.toFixed(1) || null),
-    borderColor: '#f5a623', backgroundColor: 'rgba(245,166,35,0.06)',
-    fill: true, borderWidth: 2.5, pointRadius: 0, tension: .4,
-  }];
-  if (showP) pDs.push({
-    label: 'Previous period',
-    data: dates.map(d => pMap[shiftDate(d, S.days)]?.position?.toFixed(1) || null),
-    borderColor: '#5b9cf6', backgroundColor: 'transparent',
-    borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, tension: .4,
-  });
-  if (showY) pDs.push({
-    label: 'Previous year',
-    data: dates.map(d => yMap[shiftYear(d, -1)]?.position?.toFixed(1) || null),
-    borderColor: '#f06070', backgroundColor: 'transparent',
-    borderWidth: 1.5, borderDash: [2, 4], pointRadius: 0, tension: .4,
-  });
-  S.posChart = new Chart(document.getElementById('pos-chart'), {
-    type: 'line', data: { labels, datasets: pDs }, options: chartOpts(true),
-  });
-  renderLegend('pos-legend', pDs);
+  // handle OAuth token coming back in the URL hash
+  if (handleOAuthRedirect()) {
+    await showApp();
+    return;
+  }
+
+  // already have a valid session token
+  const tok = sessionStorage.getItem('seo_tok');
+  if (tok) {
+    S.token = tok;
+    S.clientId = CLIENT_ID;
+    await showApp();
+    return;
+  }
+
+  // no token — go straight to Google sign-in (Client ID is hardcoded)
+  doOAuth();
+};
+
+async function showApp() {
+  document.getElementById('setup-overlay').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  await Promise.all([loadGscProps(), loadGa4Props()]);
+  loadAll();
 }
 
-export function destroyCharts() {
-  if (S.clicksChart) { S.clicksChart.destroy(); S.clicksChart = null; }
-  if (S.posChart)    { S.posChart.destroy();    S.posChart    = null; }
-}
+// ── EXPOSE TO HTML (inline onclick handlers) ──
+// ES Modules are scoped — functions must be on window to be callable from HTML attributes.
 
-function chartOpts(invertY) {
-  return {
-    responsive: true, maintainAspectRatio: true,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        mode: 'index', intersect: false,
-        backgroundColor: 'rgba(26,26,36,.97)',
-        borderColor: 'rgba(255,255,255,.1)', borderWidth: 1,
-        titleColor: '#9090a8', bodyColor: '#e8e8f0',
-        titleFont: { family: 'Inter', size: 10 },
-        bodyFont: { family: 'Inter', size: 11 }, padding: 10,
-      },
-    },
-    scales: {
-      x: { grid: { color: 'rgba(255,255,255,.04)', drawBorder: false }, ticks: { color: '#55556a', font: { family: 'Inter', size: 9 }, maxTicksLimit: 8 } },
-      y: { reverse: invertY, grid: { color: 'rgba(255,255,255,.04)', drawBorder: false }, ticks: { color: '#55556a', font: { family: 'Inter', size: 9 }, maxTicksLimit: 5 } },
-    },
-    interaction: { mode: 'index', intersect: false },
-  };
-}
+window.__connect = () => {
+  const v = document.getElementById('cid-input').value.trim();
+  if (!v || !v.includes('.apps.googleusercontent.com')) {
+    const e = document.getElementById('setup-err');
+    e.textContent = 'Please enter a valid OAuth Client ID.';
+    e.style.display = 'block';
+    return;
+  }
+  S.clientId = v;
+  doOAuth();
+};
 
-function renderLegend(id, datasets) {
-  document.getElementById(id).innerHTML = datasets.map(d =>
-    `<div class="leg-i"><div class="leg-dot" style="background:${d.borderColor}"></div>${d.label}</div>`
-  ).join('');
-}
+window.__signOut        = signOut;
+window.__loadAll        = loadAll;
+window.__renderAll      = renderAll;
+window.__renderKeywords = renderKeywords;
+window.__recalcMetrics  = recalcMetricsFromFiltered;
+window.__setCmp         = setCmp;
+window.__sortQ          = sortQ;
+window.__exportCsv      = exportCsv;
+window.__startDrag      = startDrag;
+window.__startResize    = startResize;
 
-function shiftDate(d, days) { const dt = new Date(d); dt.setDate(dt.getDate() - days); return dt.toISOString().split('T')[0]; }
-function shiftYear(d, y)    { const dt = new Date(d); dt.setFullYear(dt.getFullYear() + y); return dt.toISOString().split('T')[0]; }
+window.__drillKeyword = (kw) => {
+  document.getElementById('url-filter').value = '';
+  // set keyword search to isolate that keyword
+  document.getElementById('kw-search').value = kw;
+  window.__renderKeywords();
+};
+
+window.__clearDrill = () => {
+  document.getElementById('url-filter').value = '';
+  loadAll();
+};
+
+window.__toggleBranded = () => {
+  S.hideBranded = !S.hideBranded;
+  document.getElementById('brand-tog').classList.toggle('on', S.hideBranded);
+  recalcMetricsFromFiltered();
+  renderAll();
+};
+
+window.__setDays = d => {
+  S.days = d;
+  document.querySelectorAll('.pill').forEach(p => p.classList.toggle('active', +p.dataset.d === d));
+  loadAll();
+};
+
+window.__setKwTab = t => {
+  S.kwTab = t;
+  document.querySelectorAll('.kwtab').forEach(b => b.classList.toggle('active', b.dataset.kw === t));
+  renderKeywords();
+};
+
+window.__filterProp  = t => { openDrop(t); renderPropOpts(t); };
+window.__openDrop    = t => { document.getElementById(t + '-drop').classList.add('open'); renderPropOpts(t); };
+window.__closeDrop   = (t, d) => setTimeout(() => document.getElementById(t + '-drop').classList.remove('open'), d);
+
+window.__selProp = (type, val, lbl) => {
+  if (type === 'gsc') { S.selGsc = val; document.getElementById('gsc-in').value = lbl; }
+  else                { S.selGa4 = val; document.getElementById('ga4-in').value = lbl; }
+  document.getElementById(type + '-drop').classList.remove('open');
+  loadAll();
+};
+
+window.__filterCountry  = () => { renderCountryOpts(document.getElementById('country-in').value); document.getElementById('country-drop').classList.add('open'); };
+window.__openCountry    = () => { document.getElementById('country-drop').classList.add('open'); renderCountryOpts(document.getElementById('country-in').value); };
+window.__closeCountry   = d  => setTimeout(() => document.getElementById('country-drop').classList.remove('open'), d);
+
+window.__selCountry = (code, lbl) => {
+  S.selCountry = code;
+  document.getElementById('country-in').value = code ? lbl : '';
+  document.getElementById('country-drop').classList.remove('open');
+  loadAll();
+};
+
+function openDrop(t) { document.getElementById(t + '-drop').classList.add('open'); renderPropOpts(t); }
