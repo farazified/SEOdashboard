@@ -54,9 +54,12 @@
       <div class="cdrop" id="country-drop"><div id="country-opts"></div></div>
     </div>
     <div class="dpills">
-      <button class="pill" data-d="7"  onclick="window.__setDays(7)">7d</button>
-      <button class="pill active" data-d="30" onclick="window.__setDays(30)">30d</button>
-      <button class="pill" data-d="90" onclick="window.__setDays(90)">90d</button>
+      <button class="pill" data-d="7"   onclick="window.__setDays(7)">Last 7 days</button>
+      <button class="pill" data-d="28"  onclick="window.__setDays(28)">Last 28 days</button>
+      <button class="pill active" data-d="30" onclick="window.__setDays(30)">Last 30 days</button>
+      <button class="pill" data-d="90"  onclick="window.__setDays(90)">Last 3 months</button>
+      <button class="pill" data-d="180" onclick="window.__setDays(180)">Last 6 months</button>
+      <button class="pill" data-d="365" onclick="window.__setDays(365)">Last 12 months</button>
     </div>
     <button class="user-btn" onclick="window.__signOut()">Sign out</button>
   </div>
@@ -93,6 +96,7 @@
     <!-- Comparison toggle + section label -->
     <div class="top-row">
       <span class="section-lbl" id="metrics-title">Overview — sitewide</span>
+      <span class="date-range-lbl" id="date-range-lbl"></span>
       <div class="cmp-group">
         <button class="cmp-btn active" data-cmp="pop"  onclick="window.__setCmp('pop')">PoP</button>
         <button class="cmp-btn"        data-cmp="yoy"  onclick="window.__setCmp('yoy')">YoY</button>
@@ -182,11 +186,12 @@
           <button class="kwtab"        data-kw="dn"  onclick="window.__setKwTab('dn')">↓ Falling</button>
         </div>
         <input class="pf" type="text" id="kw-search" placeholder="Filter keywords…" oninput="window.__renderKeywords()"/>
+        <button class="btn-csv" onclick="window.__exportCsv()" title="Export to CSV">↓ CSV</button>
         <span class="organic-tag">GA4 = organic only</span>
       </div>
       <div style="overflow-x:auto">
         <table class="dt">
-          <thead><tr>
+          <thead class="sticky-head"><tr>
             <th onclick="window.__sortQ('query')">#  Keyword</th>
             <th onclick="window.__sortQ('clicks')">Clicks ↕</th>
             <th onclick="window.__sortQ('delta')">Clicks PoP ↕</th>
