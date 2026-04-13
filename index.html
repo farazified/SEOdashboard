@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SEO·IQ</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%237c6dfa'/><text x='16' y='22' text-anchor='middle' font-family='Arial Black' font-weight='900' font-size='16' fill='white'>IQ</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
@@ -102,37 +103,37 @@
     <!-- Metric cards -->
     <div class="metrics-section">
       <div class="metrics-group-label">Search Console</div>
-      <div class="metrics-row">
+      <div class="metrics-row" id="metrics-gsc-row">
 
-        <div class="mcard-pair mc-clicks">
+        <div class="mcard-pair mc-clicks" id="mc-clicks" style="animation-delay:.05s">
           <div class="mcard-total"><div class="mglow"></div><div class="mlbl">Total Clicks</div><div class="mval" id="m-clicks">—</div><div class="mdeltas" id="m-clicks-d"></div></div>
-          <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Filtered</span><span class="fcard-badge" id="filter-label-cl">no filter</span></div><div class="fval" id="m-clicks-f">—</div><div class="fdiff" id="m-clicks-diff"></div></div>
+          <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Filtered</span><span class="fcard-badge" id="filter-label-cl">no filter</span></div><div class="fval" id="m-clicks-f">—</div><div id="m-clicks-diff"></div></div>
         </div>
 
-        <div class="mcard-pair mc-impr">
+        <div class="mcard-pair mc-impr" id="mc-impr" style="animation-delay:.1s">
           <div class="mcard-total"><div class="mglow"></div><div class="mlbl">Total Impressions</div><div class="mval" id="m-impr">—</div><div class="mdeltas" id="m-impr-d"></div></div>
-          <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Filtered</span><span class="fcard-badge" id="filter-label-im">no filter</span></div><div class="fval" id="m-impr-f">—</div><div class="fdiff" id="m-impr-diff"></div></div>
+          <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Filtered</span><span class="fcard-badge" id="filter-label-im">no filter</span></div><div class="fval" id="m-impr-f">—</div><div id="m-impr-diff"></div></div>
         </div>
 
-        <div class="mcard-pair mc-pos">
+        <div class="mcard-pair mc-pos" id="mc-pos" style="animation-delay:.15s">
           <div class="mcard-total"><div class="mglow"></div><div class="mlbl">Avg. Position</div><div class="mval" id="m-pos">—</div><div class="mdeltas" id="m-pos-d"></div></div>
-          <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Filtered</span><span class="fcard-badge" id="filter-label-pos">no filter</span></div><div class="fval" id="m-pos-f">—</div><div class="fdiff" id="m-pos-diff"></div></div>
+          <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Filtered</span><span class="fcard-badge" id="filter-label-pos">no filter</span></div><div class="fval" id="m-pos-f">—</div><div id="m-pos-diff"></div></div>
         </div>
 
-        <div class="mcard-pair mc-ctr">
+        <div class="mcard-pair mc-ctr" id="mc-ctr" style="animation-delay:.2s">
           <div class="mcard-total"><div class="mglow"></div><div class="mlbl">CTR</div><div class="mval" id="m-ctr">—</div><div class="mdeltas" id="m-ctr-d"></div></div>
-          <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Filtered</span><span class="fcard-badge" id="filter-label-ctr">no filter</span></div><div class="fval" id="m-ctr-f">—</div><div class="fdiff" id="m-ctr-diff"></div></div>
+          <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Filtered</span><span class="fcard-badge" id="filter-label-ctr">no filter</span></div><div class="fval" id="m-ctr-f">—</div><div id="m-ctr-diff"></div></div>
         </div>
 
       </div>
 
       <div class="metrics-group-label" style="margin-top:14px">GA4 — organic search &amp; shopping only</div>
       <div class="metrics-row-ga4">
-        <div class="mcard-pair mc-sess">
+        <div class="mcard-pair mc-sess" style="animation-delay:.25s">
           <div class="mcard-total"><div class="mglow"></div><div class="mlbl">Sessions</div><div class="mval" id="m-sess">—</div><div class="mdeltas" id="m-sess-d"></div></div>
           <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Note</span></div><div class="fcard-note">GA4 doesn't provide keyword-level data — sessions reflect the URL filter only.</div></div>
         </div>
-        <div class="mcard-pair mc-rev">
+        <div class="mcard-pair mc-rev" style="animation-delay:.3s">
           <div class="mcard-total"><div class="mglow"></div><div class="mlbl">Revenue</div><div class="mval" id="m-rev">—</div><div class="mdeltas" id="m-rev-d"></div></div>
           <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Note</span></div><div class="fcard-note">Revenue is attributed at session level, not keyword level.</div></div>
         </div>
