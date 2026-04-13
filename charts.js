@@ -10,9 +10,14 @@ export function buildCharts(curR, popR, yoyR) {
   const toMap  = rows => { const m = {}; rows.forEach(r => m[r.keys[0]] = r); return m; };
   const dates  = curR.map(r => r.keys[0]).sort();
   const pMap   = toMap(popR), yMap = toMap(yoyR);
-  const labels = dates.map(d => d.slice(5));
-  const showP  = S.cmpMode === 'pop'  || S.cmpMode === 'both';
-  const showY  = S.cmpMode === 'yoy'  || S.cmpMode === 'both';
+  const labels = dates.map(d => {
+    // "4 Apr" format
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  });
+  // Charts always show all 3 lines — cmpMode only affects the metric cards
+  const showP = true;
+  const showY = true;
 
   destroyCharts();
 
