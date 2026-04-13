@@ -11,15 +11,17 @@ import { COUNTRIES } from './config.js';
 
 // ── LOADING STATE ─────────────────────────────
 
+const SKEL_ROW = `<tr class="skel-row">${'<td><div class="skel"></div></td>'.repeat(11)}</tr>`;
+const SKEL_CARD = `<div class="skel-card"><div class="skel" style="width:60%;height:10px;margin-bottom:8px"></div><div class="skel" style="width:80%;height:8px"></div></div>`;
+
 export function setLoading() {
   ['m-clicks','m-impr','m-pos','m-ctr','m-sess','m-rev']
-    .forEach(id => document.getElementById(id).textContent = '…');
+    .forEach(id => { const el = document.getElementById(id); el.innerHTML = '<div class="skel mval-skel"></div>'; });
   ['m-clicks-d','m-impr-d','m-pos-d','m-ctr-d','m-sess-d','m-rev-d']
-    .forEach(id => document.getElementById(id).innerHTML = '');
-  document.getElementById('kw-body').innerHTML =
-    '<tr><td colspan="11" style="padding:24px;text-align:center;color:var(--text3);font-size:12px"><span class="dot">Loading</span></td></tr>';
-  document.getElementById('winners-body').innerHTML = '<div class="loading"><span class="dot">Loading</span></div>';
-  document.getElementById('losers-body').innerHTML  = '<div class="loading"><span class="dot">Loading</span></div>';
+    .forEach(id => document.getElementById(id).innerHTML = '<div class="skel delta-skel"></div><div class="skel delta-skel" style="margin-top:4px"></div>');
+  document.getElementById('kw-body').innerHTML = SKEL_ROW.repeat(8);
+  document.getElementById('winners-body').innerHTML = SKEL_CARD.repeat(4);
+  document.getElementById('losers-body').innerHTML  = SKEL_CARD.repeat(4);
 }
 
 // ── DELTA DISPLAY ─────────────────────────────
@@ -222,7 +224,10 @@ export function renderKeywords() {
   if (S.kwTab === 'up') data = data.filter(r => (r.delta != null && r.delta > 5)   || (r.deltaYoy != null && r.deltaYoy > 5));
   if (S.kwTab === 'dn') data = data.filter(r => (r.delta != null && r.delta < -5)  || (r.deltaYoy != null && r.deltaYoy < -5));
   const tb = document.getElementById('kw-body');
-  if (!data.length) { tb.innerHTML = '<tr><td colspan="11"><div class="empty">No keywords found.</div></td></tr>'; return; }
+  if (!data.length) {
+    tb.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No keywords found</div><div class="empty-sub">${S.kwTab !== 'all' ? 'Try switching to "All" tab or adjusting your filters.' : 'No data returned for this period or URL.'}</div></div></td></tr>`;
+    return;
+  }
 
   // find top-3 by impressions with position <= 15 (opportunity highlights)
   const oppIds = new Set(
@@ -239,7 +244,7 @@ export function renderKeywords() {
     const rowCls  = isOpp ? ' class="opp-row"' : '';
     const oppTag  = isOpp ? '<span class="opp-badge">opportunity</span>' : '';
     return `<tr${rowCls}>
-      <td><span class="rn">${i + 1}</span><span class="kwc" title="${r.query}">${r.query}</span>${bb}${oppTag}</td>
+      <td><span class="rn">${i + 1}</span><span class="kwc kw-drill" title="Click to filter" onclick="window.__drillKeyword('${r.query.replace(/'/g,"\'")}' )">${r.query}</span>${bb}${oppTag}</td>
       <td class="num-cell">${fmt(r.clicks)}</td>
       <td>${mkBadge(r.delta,        false)}</td>
       <td>${mkBadge(r.deltaYoy,     false)}</td>
@@ -281,6 +286,28 @@ export function renderLosers() {
       <span class="wl-stat">${fmt(r.clicks)} clicks</span>
       <span class="wl-badge dn">↓ ${r.delta.toFixed(1)}%</span>
     </div>`).join('') + '</div>';
+}
+
+
+// ── CSV EXPORT ────────────────────────────────
+
+export function exportCsv() {
+  const data = filtBrand(S.qData);
+  if (!data.length) return;
+  const headers = ['Keyword','Clicks','Clicks PoP %','Clicks YoY %','Impressions','Impr PoP %','Impr YoY %','Avg Position','Pos PoP %','Pos YoY %','CTR %'];
+  const rows = data.map(r => [
+    `"${r.query.replace(/"/g,'""')}"`,
+    r.clicks, r.delta ?? '', r.deltaYoy ?? '',
+    r.impressions, r.deltaImprPop ?? '', r.deltaImprYoy ?? '',
+    r.position.toFixed(1), r.deltaPosPop ?? '', r.deltaPosYoy ?? '',
+    (r.ctr * 100).toFixed(2),
+  ]);
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `seo-iq-keywords-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
 }
 
 // ── SORT ──────────────────────────────────────
