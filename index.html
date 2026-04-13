@@ -4,141 +4,139 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SEO·IQ</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%237c6dfa'/><text x='16' y='22' text-anchor='middle' font-family='Arial Black' font-weight='900' font-size='16' fill='white'>IQ</text></svg>">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%237c6dfa'/><text x='16' y='22' text-anchor='middle' font-family='Arial Black' font-weight='900' font-size='15' fill='white'>IQ</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<!-- ══ SETUP SCREEN ══ -->
+<!-- SETUP -->
 <div id="setup-overlay">
   <div class="setup-card">
     <div class="setup-logo">SEO·IQ</div>
-    <p class="setup-sub">GSC + GA4 in one place. Runs entirely in your browser — free forever.</p>
-    <button class="btn-connect" id="btn-signin" style="margin-top:8px" onclick="window.__signInClick()">Sign in with Google →</button>
-    <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:20px;line-height:1.7">
-      You only need to sign in once per session.<br>Your data never leaves your browser.
-    </p>
+    <p class="setup-sub">GSC + GA4 in one place. Free, runs in your browser.</p>
+    <button class="btn-signin" onclick="window._signIn()">Sign in with Google →</button>
+    <p class="setup-note">You only need to sign in once per session.<br>Your data never leaves your browser.</p>
   </div>
 </div>
 
-<!-- ══ MAIN APP ══ -->
+<!-- APP -->
 <div id="app">
 
-  <!-- Topbar -->
+  <!-- TOPBAR -->
   <div class="topbar">
     <span class="tlogo">SEO·IQ</span>
     <span class="tsep">|</span>
     <div class="ppick">
-      <input type="text" class="ppick-inp" id="gsc-in" placeholder="GSC property…" autocomplete="off"
-        oninput="window.__filterProp('gsc')" onfocus="window.__openDrop('gsc')" onblur="window.__closeDrop('gsc',300)"/>
+      <input class="ppick-inp" id="gsc-in" type="text" placeholder="GSC property…" autocomplete="off"
+        oninput="window._filterProp('gsc')" onfocus="window._openDrop('gsc')" onblur="window._closeDrop('gsc',300)"/>
       <div class="pdrop" id="gsc-drop"><div class="plbl">Search Console</div><div id="gsc-opts"></div></div>
     </div>
     <span class="tsep">+</span>
     <div class="ppick">
-      <input type="text" class="ppick-inp" id="ga4-in" placeholder="GA4 property…" autocomplete="off"
-        oninput="window.__filterProp('ga4')" onfocus="window.__openDrop('ga4')" onblur="window.__closeDrop('ga4',300)"/>
+      <input class="ppick-inp" id="ga4-in" type="text" placeholder="GA4 property…" autocomplete="off"
+        oninput="window._filterProp('ga4')" onfocus="window._openDrop('ga4')" onblur="window._closeDrop('ga4',300)"/>
       <div class="pdrop" id="ga4-drop"><div class="plbl">Google Analytics 4</div><div id="ga4-opts"></div></div>
     </div>
     <span class="tsep">|</span>
     <div class="cwrap">
-      <input type="text" class="cinp" id="country-in" placeholder="All countries…" autocomplete="off"
-        oninput="window.__filterCountry()" onfocus="window.__openCountry()" onblur="window.__closeCountry(300)"/>
+      <input class="cinp" id="country-in" type="text" placeholder="All countries…" autocomplete="off"
+        oninput="window._filterCountry()" onfocus="window._openCountry()" onblur="window._closeCountry(300)"/>
       <div class="cdrop" id="country-drop"><div id="country-opts"></div></div>
     </div>
     <div class="dpills">
-      <button class="pill" data-d="7"   onclick="window.__setDays(7)">Last 7 days</button>
-      <button class="pill" data-d="28"  onclick="window.__setDays(28)">Last 28 days</button>
-      <button class="pill active" data-d="30" onclick="window.__setDays(30)">Last 30 days</button>
-      <button class="pill" data-d="90"  onclick="window.__setDays(90)">Last 3 months</button>
-      <button class="pill" data-d="180" onclick="window.__setDays(180)">Last 6 months</button>
-      <button class="pill" data-d="365" onclick="window.__setDays(365)">Last 12 months</button>
+      <button class="pill" data-d="7"   onclick="window._setDays(7)">Last 7 days</button>
+      <button class="pill" data-d="28"  onclick="window._setDays(28)">Last 28 days</button>
+      <button class="pill active" data-d="30" onclick="window._setDays(30)">Last 30 days</button>
+      <button class="pill" data-d="90"  onclick="window._setDays(90)">Last 3 months</button>
+      <button class="pill" data-d="180" onclick="window._setDays(180)">Last 6 months</button>
+      <button class="pill" data-d="365" onclick="window._setDays(365)">Last 12 months</button>
     </div>
-    <button class="user-btn" onclick="window.__signOut()">Sign out</button>
+    <button class="user-btn" onclick="window._signOut()">Sign out</button>
   </div>
 
-  <!-- Filter bar -->
+  <!-- FILTER BAR -->
   <div class="fbar">
     <span class="flbl">URL</span>
-    <input type="text" class="url-inp" id="url-filter"
-      placeholder="/collections/sofa-beds  —  leave blank for sitewide"
-      onkeydown="if(event.key==='Enter') window.__loadAll()"/>
-    <button class="btn-go" onclick="window.__loadAll()">Analyze →</button>
-    <button class="btn-clr" id="btn-clr" onclick="window.__clearDrill()" style="display:none">✕ Clear</button>
+    <input class="url-inp" id="url-filter" type="text"
+      placeholder="/collections/sofa-beds  —  blank = sitewide"
+      onkeydown="if(event.key==='Enter') window._loadAll()"/>
+    <button class="btn-go" onclick="window._loadAll()">Analyze →</button>
+    <button class="btn-clr" id="btn-clr" onclick="window._clearDrill()" style="display:none">✕ Clear</button>
     <span class="tsep">|</span>
-    <div class="tog-wrap" onclick="window.__toggleBranded()">
+    <div class="tog-wrap" onclick="window._toggleBranded()">
       <div class="tog" id="brand-tog"><div class="tog-k"></div></div>
       <span class="tog-txt">Hide branded</span>
     </div>
-    <input class="brand-inp" type="text" id="brand-terms"
+    <input class="brand-inp" id="brand-terms" type="text"
       placeholder="Brand terms e.g. koala, koala.com"
-      oninput="window.__recalcMetrics(); window.__renderAll()"/>
+      oninput="window._recalc()"/>
   </div>
 
-  <!-- Page content -->
+  <!-- PAGE -->
   <div class="page">
     <div id="err-banner" class="alert" style="display:none"></div>
 
-    <!-- Drill-down indicator -->
+    <!-- drill bar -->
     <div id="drill-bar" style="display:none" class="drill-bar">
-      <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--sans);font-weight:600">Drilling into</span>
-      <span class="drill-lbl" id="drill-lbl"></span>
-      <button class="drill-cls" onclick="window.__clearDrill()">✕ Back to sitewide</button>
+      <span class="drill-tag">Drilling into</span>
+      <span id="drill-lbl" class="drill-lbl"></span>
+      <button class="drill-cls" onclick="window._clearDrill()">✕ Back to sitewide</button>
     </div>
 
-    <!-- Comparison toggle + section label -->
+    <!-- top row -->
     <div class="top-row">
-      <span class="section-lbl" id="metrics-title">Overview — sitewide</span>
-      <span class="date-range-lbl" id="date-range-lbl"></span>
+      <span id="section-title" class="section-lbl">Overview — sitewide</span>
+      <span id="date-lbl" class="date-lbl"></span>
       <div class="cmp-group">
-        <button class="cmp-btn active" data-cmp="pop"  onclick="window.__setCmp('pop')">PoP</button>
-        <button class="cmp-btn"        data-cmp="yoy"  onclick="window.__setCmp('yoy')">YoY</button>
-        <button class="cmp-btn"        data-cmp="both" onclick="window.__setCmp('both')">Both</button>
+        <button class="cmp-btn active" data-cmp="pop"  onclick="window._setCmp('pop')">PoP</button>
+        <button class="cmp-btn"        data-cmp="yoy"  onclick="window._setCmp('yoy')">YoY</button>
+        <button class="cmp-btn"        data-cmp="both" onclick="window._setCmp('both')">Both</button>
       </div>
     </div>
 
-    <!-- Metric cards -->
+    <!-- METRIC CARDS -->
     <div class="metrics-section">
-      <div class="metrics-group-label">Search Console</div>
-      <div class="metrics-row" id="metrics-gsc-row">
+      <div class="mg-label">Search Console</div>
+      <div class="metrics-row">
 
-        <div class="mcard-pair mc-clicks" id="mc-clicks" style="animation-delay:.05s">
-          <div class="mcard-total"><div class="mglow"></div><div class="mlbl">Total Clicks</div><div class="mval" id="m-clicks">—</div><div class="mdeltas" id="m-clicks-d"></div></div>
-          <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Filtered</span><span class="fcard-badge" id="filter-label-cl">no filter</span></div><div class="fval" id="m-clicks-f">—</div><div id="m-clicks-diff"></div></div>
+        <div class="mcard mc-clicks">
+          <div class="mtop"><div class="mglow"></div><div class="mlbl">Total Clicks</div><div class="mval" id="m-clicks">—</div><div class="mdeltas" id="m-cd"></div></div>
+          <div class="mbot"><div class="fbadge-row"><span class="ftag">Filtered</span><span class="fbadge" id="fl-cl">no filter</span></div><div class="fval" id="fv-cl">—</div><div id="fv-cl-diff"></div></div>
         </div>
 
-        <div class="mcard-pair mc-impr" id="mc-impr" style="animation-delay:.1s">
-          <div class="mcard-total"><div class="mglow"></div><div class="mlbl">Total Impressions</div><div class="mval" id="m-impr">—</div><div class="mdeltas" id="m-impr-d"></div></div>
-          <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Filtered</span><span class="fcard-badge" id="filter-label-im">no filter</span></div><div class="fval" id="m-impr-f">—</div><div id="m-impr-diff"></div></div>
+        <div class="mcard mc-impr">
+          <div class="mtop"><div class="mglow"></div><div class="mlbl">Impressions</div><div class="mval" id="m-impr">—</div><div class="mdeltas" id="m-id"></div></div>
+          <div class="mbot"><div class="fbadge-row"><span class="ftag">Filtered</span><span class="fbadge" id="fl-im">no filter</span></div><div class="fval" id="fv-im">—</div><div id="fv-im-diff"></div></div>
         </div>
 
-        <div class="mcard-pair mc-pos" id="mc-pos" style="animation-delay:.15s">
-          <div class="mcard-total"><div class="mglow"></div><div class="mlbl">Avg. Position</div><div class="mval" id="m-pos">—</div><div class="mdeltas" id="m-pos-d"></div></div>
-          <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Filtered</span><span class="fcard-badge" id="filter-label-pos">no filter</span></div><div class="fval" id="m-pos-f">—</div><div id="m-pos-diff"></div></div>
+        <div class="mcard mc-pos">
+          <div class="mtop"><div class="mglow"></div><div class="mlbl">Avg. Position</div><div class="mval" id="m-pos">—</div><div class="mdeltas" id="m-pd"></div></div>
+          <div class="mbot"><div class="fbadge-row"><span class="ftag">Filtered</span><span class="fbadge" id="fl-pos">no filter</span></div><div class="fval" id="fv-pos">—</div><div id="fv-pos-diff"></div></div>
         </div>
 
-        <div class="mcard-pair mc-ctr" id="mc-ctr" style="animation-delay:.2s">
-          <div class="mcard-total"><div class="mglow"></div><div class="mlbl">CTR</div><div class="mval" id="m-ctr">—</div><div class="mdeltas" id="m-ctr-d"></div></div>
-          <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Filtered</span><span class="fcard-badge" id="filter-label-ctr">no filter</span></div><div class="fval" id="m-ctr-f">—</div><div id="m-ctr-diff"></div></div>
+        <div class="mcard mc-ctr">
+          <div class="mtop"><div class="mglow"></div><div class="mlbl">CTR</div><div class="mval" id="m-ctr">—</div><div class="mdeltas" id="m-td"></div></div>
+          <div class="mbot"><div class="fbadge-row"><span class="ftag">Filtered</span><span class="fbadge" id="fl-ctr">no filter</span></div><div class="fval" id="fv-ctr">—</div><div id="fv-ctr-diff"></div></div>
         </div>
 
       </div>
 
-      <div class="metrics-group-label" style="margin-top:14px">GA4 — organic search &amp; shopping only</div>
+      <div class="mg-label" style="margin-top:14px">GA4 — organic search &amp; shopping only</div>
       <div class="metrics-row-ga4">
-        <div class="mcard-pair mc-sess" style="animation-delay:.25s">
-          <div class="mcard-total"><div class="mglow"></div><div class="mlbl">Sessions</div><div class="mval" id="m-sess">—</div><div class="mdeltas" id="m-sess-d"></div></div>
-          <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Note</span></div><div class="fcard-note">GA4 doesn't provide keyword-level data — sessions reflect the URL filter only.</div></div>
+        <div class="mcard mc-sess">
+          <div class="mtop"><div class="mglow"></div><div class="mlbl">Sessions</div><div class="mval" id="m-sess">—</div><div class="mdeltas" id="m-sd"></div></div>
+          <div class="mbot"><div class="ftag">Note</div><div class="fnote">GA4 doesn't expose keyword-level data — sessions reflect the URL filter only.</div></div>
         </div>
-        <div class="mcard-pair mc-rev" style="animation-delay:.3s">
-          <div class="mcard-total"><div class="mglow"></div><div class="mlbl">Revenue</div><div class="mval" id="m-rev">—</div><div class="mdeltas" id="m-rev-d"></div></div>
-          <div class="mcard-filtered"><div class="fcard-lbl"><span class="fcard-lbl-text">Note</span></div><div class="fcard-note">Revenue is attributed at session level, not keyword level.</div></div>
+        <div class="mcard mc-rev">
+          <div class="mtop"><div class="mglow"></div><div class="mlbl">Revenue</div><div class="mval" id="m-rev">—</div><div class="mdeltas" id="m-rd"></div></div>
+          <div class="mbot"><div class="ftag">Note</div><div class="fnote">Revenue is session-level, not keyword-level.</div></div>
         </div>
       </div>
     </div>
 
-    <!-- Charts -->
+    <!-- CHARTS -->
     <div class="chart-row">
       <div class="chart-panel">
         <div class="chart-hdr"><span class="chart-ttl">Clicks over time</span><div class="legend" id="cl-legend"></div></div>
@@ -150,150 +148,63 @@
       </div>
     </div>
 
-    <!-- Draggable widgets -->
+    <!-- DRAGGABLE WIDGETS -->
     <div id="canvas-area">
-      <div class="widget" id="w-winners" style="left:0;top:0;width:420px;height:320px">
-        <div class="wdrag-handle" onmousedown="window.__startDrag(event,'w-winners')">
-          <div class="wdrag-dots"><div class="wdrag-row"><div class="wdrag-dot"></div><div class="wdrag-dot"></div></div><div class="wdrag-row"><div class="wdrag-dot"></div><div class="wdrag-dot"></div></div><div class="wdrag-row"><div class="wdrag-dot"></div><div class="wdrag-dot"></div></div></div>
+      <div class="widget" id="w-win" style="left:0;top:0;width:420px;height:300px">
+        <div class="whandle" onmousedown="window._startDrag(event,'w-win')">
+          <div class="wdots"><div class="wdr"><div class="wd"></div><div class="wd"></div></div><div class="wdr"><div class="wd"></div><div class="wd"></div></div><div class="wdr"><div class="wd"></div><div class="wd"></div></div></div>
           <span class="wtitle">🏆 Top 5 Rising Keywords</span>
         </div>
-        <div class="wbody win" id="winners-body"><div class="loading"><span class="dot">Loading</span></div></div>
-        <div class="resize-handle" onmousedown="window.__startResize(event,'w-winners')"></div>
+        <div class="wbody" id="winners-body"><div class="loading"><span class="dot">Loading</span></div></div>
+        <div class="wresize" onmousedown="window._startResize(event,'w-win')"></div>
       </div>
-      <div class="widget" id="w-losers" style="left:440px;top:0;width:420px;height:320px">
-        <div class="wdrag-handle" onmousedown="window.__startDrag(event,'w-losers')">
-          <div class="wdrag-dots"><div class="wdrag-row"><div class="wdrag-dot"></div><div class="wdrag-dot"></div></div><div class="wdrag-row"><div class="wdrag-dot"></div><div class="wdrag-dot"></div></div><div class="wdrag-row"><div class="wdrag-dot"></div><div class="wdrag-dot"></div></div></div>
+      <div class="widget" id="w-lose" style="left:440px;top:0;width:420px;height:300px">
+        <div class="whandle" onmousedown="window._startDrag(event,'w-lose')">
+          <div class="wdots"><div class="wdr"><div class="wd"></div><div class="wd"></div></div><div class="wdr"><div class="wd"></div><div class="wd"></div></div><div class="wdr"><div class="wd"></div><div class="wd"></div></div></div>
           <span class="wtitle">📉 Top 5 Falling Keywords</span>
         </div>
-        <div class="wbody lose" id="losers-body"><div class="loading"><span class="dot">Loading</span></div></div>
-        <div class="resize-handle" onmousedown="window.__startResize(event,'w-losers')"></div>
+        <div class="wbody" id="losers-body"><div class="loading"><span class="dot">Loading</span></div></div>
+        <div class="wresize" onmousedown="window._startResize(event,'w-lose')"></div>
       </div>
     </div>
 
-    <!-- Keyword detail panel (shown on keyword click) -->
-    <div id="kw-detail-panel" style="display:none" class="kw-detail-panel">
-      <div class="kw-detail-header">
-        <div>
-          <div class="kw-detail-title" id="kw-detail-title"></div>
-          <div class="kw-detail-sub">Last 12 months · GSC data</div>
-        </div>
-        <button class="drill-cls" onclick="window.__closeKwDetail()">✕ Close</button>
-      </div>
-      <div class="kw-detail-charts">
-        <div class="kw-detail-chart-wrap">
-          <div class="kw-detail-chart-lbl">Clicks</div>
-          <canvas id="kw-clicks-chart" height="80"></canvas>
-        </div>
-        <div class="kw-detail-chart-wrap">
-          <div class="kw-detail-chart-lbl">Impressions</div>
-          <canvas id="kw-impr-chart" height="80"></canvas>
-        </div>
-        <div class="kw-detail-chart-wrap">
-          <div class="kw-detail-chart-lbl">Avg. Position</div>
-          <canvas id="kw-pos-chart" height="80"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- Keyword table -->
+    <!-- KEYWORD TABLE -->
     <div class="kw-panel">
       <div class="kw-ph">
         <span class="kw-ttl">All Keywords</span>
         <div class="kwtabs">
-          <button class="kwtab active" data-kw="all" onclick="window.__setKwTab('all')">All</button>
-          <button class="kwtab"        data-kw="up"  onclick="window.__setKwTab('up')">↑ Rising</button>
-          <button class="kwtab"        data-kw="dn"  onclick="window.__setKwTab('dn')">↓ Falling</button>
+          <button class="kwtab active" data-kw="all" onclick="window._setKwTab('all')">All</button>
+          <button class="kwtab"        data-kw="up"  onclick="window._setKwTab('up')">↑ Rising</button>
+          <button class="kwtab"        data-kw="dn"  onclick="window._setKwTab('dn')">↓ Falling</button>
         </div>
-        <input class="pf" type="text" id="kw-search" placeholder="Filter keywords…" oninput="window.__renderKeywords()"/>
-        <button class="btn-csv" onclick="window.__exportCsv()" title="Export to CSV">↓ CSV</button>
+        <input class="pf" id="kw-search" type="text" placeholder="Filter keywords…" oninput="window._renderKws()"/>
+        <button class="btn-csv" onclick="window._exportCsv()">↓ CSV</button>
         <span class="organic-tag">GA4 = organic only</span>
       </div>
-      <div class="kw-scroll-wrap">
+      <div class="kw-scroll">
         <table class="dt">
           <thead class="sticky-head"><tr>
-            <th data-col="query"       onclick="window.__sortQ('query')">#  Keyword</th>
-            <th data-col="clicks"      onclick="window.__sortQ('clicks')">Clicks</th>
-            <th data-col="delta"       onclick="window.__sortQ('delta')">Clicks PoP</th>
-            <th data-col="deltaYoy"    onclick="window.__sortQ('deltaYoy')">Clicks YoY</th>
-            <th data-col="impressions" onclick="window.__sortQ('impressions')">Impr.</th>
-            <th data-col="deltaImprPop" onclick="window.__sortQ('deltaImprPop')">Impr. PoP</th>
-            <th data-col="deltaImprYoy" onclick="window.__sortQ('deltaImprYoy')">Impr. YoY</th>
-            <th data-col="position"    onclick="window.__sortQ('position')">Avg. Pos.</th>
-            <th data-col="deltaPosPop" onclick="window.__sortQ('deltaPosPop')">Pos. PoP</th>
-            <th data-col="deltaPosYoy" onclick="window.__sortQ('deltaPosYoy')">Pos. YoY</th>
-            <th>CTR</th>
+            <th data-col="query"        onclick="window._sortQ('query')">#  Keyword</th>
+            <th data-col="clicks"       onclick="window._sortQ('clicks')">Clicks</th>
+            <th data-col="delta"        onclick="window._sortQ('delta')">Clicks PoP</th>
+            <th data-col="deltaYoy"     onclick="window._sortQ('deltaYoy')">Clicks YoY</th>
+            <th data-col="impressions"  onclick="window._sortQ('impressions')">Impr.</th>
+            <th data-col="deltaImprPop" onclick="window._sortQ('deltaImprPop')">Impr. PoP</th>
+            <th data-col="deltaImprYoy" onclick="window._sortQ('deltaImprYoy')">Impr. YoY</th>
+            <th data-col="position"     onclick="window._sortQ('position')">Avg. Pos.</th>
+            <th data-col="deltaPosPop"  onclick="window._sortQ('deltaPosPop')">Pos. PoP</th>
+            <th data-col="deltaPosYoy"  onclick="window._sortQ('deltaPosYoy')">Pos. YoY</th>
+            <th data-col="ctr"          onclick="window._sortQ('ctr')">CTR</th>
           </tr></thead>
           <tbody id="kw-body"></tbody>
         </table>
       </div>
     </div>
 
-  </div>
+  </div><!-- /page -->
+</div><!-- /app -->
 
-  <!-- ── KEYWORD DETAIL MODAL ── -->
-  <div id="kw-modal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px;">
-    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:20px;width:100%;max-width:860px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.7);">
-      <!-- header -->
-      <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--bg2);z-index:10;border-radius:20px 20px 0 0;">
-        <div>
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--sans);font-weight:600;margin-bottom:3px;">Keyword detail — last 12 months</div>
-          <div id="kw-modal-title" style="font-family:var(--sans);font-size:18px;font-weight:700;color:var(--text);"></div>
-        </div>
-        <button onclick="window.__closeKwChart()" style="margin-left:auto;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:13px;padding:7px 14px;cursor:pointer;font-family:var(--body);">✕ Close</button>
-      </div>
-
-      <!-- loading -->
-      <div id="kw-modal-loading" style="display:flex;align-items:center;justify-content:center;padding:60px;">
-        <div style="text-align:center;color:var(--text3);font-size:12px;font-family:var(--body);">
-          <div class="skel" style="width:120px;height:10px;margin:0 auto 10px"></div>
-          <div class="skel" style="width:80px;height:8px;margin:0 auto"></div>
-        </div>
-      </div>
-
-      <!-- charts -->
-      <div id="kw-modal-charts" style="display:none;padding:20px 22px 24px;">
-        <!-- summary stats -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px;">
-          <div style="background:var(--bg3);border-radius:10px;padding:14px 16px;border:1px solid var(--border);">
-            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--sans);font-weight:600;margin-bottom:6px;">Total Clicks</div>
-            <div id="kw-stat-clicks" style="font-family:var(--sans);font-size:20px;font-weight:800;color:#7c6dfa;">—</div>
-          </div>
-          <div style="background:var(--bg3);border-radius:10px;padding:14px 16px;border:1px solid var(--border);">
-            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--sans);font-weight:600;margin-bottom:6px;">Total Impressions</div>
-            <div id="kw-stat-impr" style="font-family:var(--sans);font-size:20px;font-weight:800;color:#5b9cf6;">—</div>
-          </div>
-          <div style="background:var(--bg3);border-radius:10px;padding:14px 16px;border:1px solid var(--border);">
-            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--sans);font-weight:600;margin-bottom:6px;">Avg. Position</div>
-            <div id="kw-stat-pos" style="font-family:var(--sans);font-size:20px;font-weight:800;color:#f5a623;">—</div>
-          </div>
-          <div style="background:var(--bg3);border-radius:10px;padding:14px 16px;border:1px solid var(--border);">
-            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--sans);font-weight:600;margin-bottom:6px;">Avg. CTR</div>
-            <div id="kw-stat-ctr" style="font-family:var(--sans);font-size:20px;font-weight:800;color:var(--green);">—</div>
-          </div>
-        </div>
-
-        <!-- 3 charts -->
-        <div style="margin-bottom:18px;">
-          <div style="font-size:11px;font-weight:600;color:var(--text2);font-family:var(--sans);margin-bottom:8px;">Clicks</div>
-          <div style="height:140px;"><canvas id="kw-chart-clicks"></canvas></div>
-        </div>
-        <div style="margin-bottom:18px;">
-          <div style="font-size:11px;font-weight:600;color:var(--text2);font-family:var(--sans);margin-bottom:8px;">Impressions</div>
-          <div style="height:140px;"><canvas id="kw-chart-impr"></canvas></div>
-        </div>
-        <div>
-          <div style="font-size:11px;font-weight:600;color:var(--text2);font-family:var(--sans);margin-bottom:8px;">Avg. Position <span style="font-size:10px;color:var(--text3);font-weight:400">(lower is better)</span></div>
-          <div style="height:140px;"><canvas id="kw-chart-pos"></canvas></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</div>
-
-<!-- Chart.js (must load before app.js) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script type="module" src="app.js"></script>
-<script type="module" src="keyword-chart.js"></script>
 </body>
 </html>
