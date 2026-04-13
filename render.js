@@ -129,7 +129,7 @@ export function recalcMetricsFromFiltered() {
   clEl.className   = 'fval' + (hasFilter ? ' has-filter' : '');
   const clDiff = tCl - fCl;
   document.getElementById('m-clicks-diff').innerHTML =
-    (hasFilter ? `<span class="fdiff saved">−${fmt(clDiff)} branded (${((clDiff / tCl) * 100).toFixed(1)}%)</span><br>` : '') +
+    (hasFilter ? `<span class="fdiff saved">−${fmt(clDiff)} branded (${((clDiff / tCl) * 100).toFixed(1)}%)</span>` : '') +
     fDeltaRows(fClPop, fClYoy, false) ||
     '<span class="fdiff">same as total</span>';
 
@@ -139,11 +139,11 @@ export function recalcMetricsFromFiltered() {
   imEl.className   = 'fval' + (hasFilter ? ' has-filter' : '');
   const imDiff = tIm - fIm;
   document.getElementById('m-impr-diff').innerHTML =
-    (hasFilter ? `<span class="fdiff saved">−${fmt(imDiff)} branded (${((imDiff / tIm) * 100).toFixed(1)}%)</span><br>` : '') +
+    (hasFilter ? `<span class="fdiff saved">−${fmt(imDiff)} branded (${((imDiff / tIm) * 100).toFixed(1)}%)</span>` : '') +
     fDeltaRows(fImPop, fImYoy, false) ||
     '<span class="fdiff">same as total</span>';
 
-  // position filtered — use keyword-level position deltas aggregated
+  // position filtered
   const fPosPop = filt.length && fPos != null ? fmtD(fPos, filt.reduce((a, r) => a + (r.prevPos || r.position), 0) / filt.length) : null;
   const fPosYoy = filt.length && fPos != null ? fmtD(fPos, filt.reduce((a, r) => a + (r.yoyPos  || r.position), 0) / filt.length) : null;
   const posEl   = document.getElementById('m-pos-f');
@@ -151,18 +151,18 @@ export function recalcMetricsFromFiltered() {
   posEl.className   = 'fval' + (hasFilter ? ' has-filter' : '');
   const posDiff = fPos != null && tPos != null ? +(fPos - tPos).toFixed(1) : null;
   document.getElementById('m-pos-diff').innerHTML =
-    (hasFilter && posDiff != null ? `<span class="fdiff ${posDiff < 0 ? 'saved' : 'added'}">${posDiff > 0 ? '+' : ''}${posDiff} vs total</span><br>` : '') +
+    (hasFilter && posDiff != null ? `<span class="fdiff ${posDiff < 0 ? 'saved' : 'added'}">${posDiff > 0 ? '+' : ''}${posDiff} vs total</span>` : '') +
     fDeltaRows(fPosPop, fPosYoy, true) ||
     '<span class="fdiff">same as total</span>';
 
   // CTR filtered
-  const fCtrPop = fCtr && tCtr ? fmtD(fCtr, tCtr) : null;
-  const ctrEl   = document.getElementById('m-ctr-f');
+  const ctrEl = document.getElementById('m-ctr-f');
   ctrEl.textContent = fCtr != null ? (fCtr * 100).toFixed(2) + '%' : '—';
   ctrEl.className   = 'fval' + (hasFilter ? ' has-filter' : '');
   const ctrDiff = fCtr != null && tCtr != null ? +((fCtr - tCtr) * 100).toFixed(2) : null;
+  // use total period deltas for CTR since we can't sum CTR per keyword
   document.getElementById('m-ctr-diff').innerHTML =
-    (hasFilter && ctrDiff != null ? `<span class="fdiff ${ctrDiff > 0 ? 'saved' : 'added'}">${ctrDiff > 0 ? '+' : ''}${ctrDiff}% vs total</span><br>` : '') +
+    (hasFilter && ctrDiff != null ? `<span class="fdiff ${ctrDiff > 0 ? 'saved' : 'added'}">${ctrDiff > 0 ? '+' : ''}${ctrDiff}% vs total</span>` : '') +
     fDeltaRows(METRICS.ctrPop, METRICS.ctrYoy, false) ||
     '<span class="fdiff">same as total</span>';
 
@@ -206,20 +206,33 @@ export function renderKeywords() {
   if (S.kwTab === 'dn') data = data.filter(r => (r.delta != null && r.delta < -5)  || (r.deltaYoy != null && r.deltaYoy < -5));
   const tb = document.getElementById('kw-body');
   if (!data.length) { tb.innerHTML = '<tr><td colspan="11"><div class="empty">No keywords found.</div></td></tr>'; return; }
+
+  // find top-3 by impressions with position <= 15 (opportunity highlights)
+  const oppIds = new Set(
+    [...data]
+      .filter(r => r.position <= 15)
+      .sort((a, b) => b.impressions - a.impressions)
+      .slice(0, 3)
+      .map(r => r.query)
+  );
+
   tb.innerHTML = data.slice(0, 200).map((r, i) => {
-    const bb = r.branded && !S.hideBranded ? '<span class="bbadge">brand</span>' : '';
-    return `<tr>
-      <td><span class="rn">${i + 1}</span><span class="kwc" style="display:inline-block" title="${r.query}">${r.query}</span>${bb}</td>
-      <td style="color:var(--text);font-weight:500">${fmt(r.clicks)}</td>
+    const bb      = r.branded && !S.hideBranded ? '<span class="bbadge">brand</span>' : '';
+    const isOpp   = oppIds.has(r.query);
+    const rowCls  = isOpp ? ' class="opp-row"' : '';
+    const oppTag  = isOpp ? '<span class="opp-badge">opportunity</span>' : '';
+    return `<tr${rowCls}>
+      <td><span class="rn">${i + 1}</span><span class="kwc" style="display:inline-block" title="${r.query}">${r.query}</span>${bb}${oppTag}</td>
+      <td class="num-cell">${fmt(r.clicks)}</td>
       <td>${mkBadge(r.delta,        false)}</td>
       <td>${mkBadge(r.deltaYoy,     false)}</td>
-      <td>${fmt(r.impressions)}</td>
+      <td class="num-cell">${fmt(r.impressions)}</td>
       <td>${mkBadge(r.deltaImprPop, false)}</td>
       <td>${mkBadge(r.deltaImprYoy, false)}</td>
-      <td>${r.position.toFixed(1)}<span class="pbar"><span class="pbf" style="width:${Math.max(4, Math.min(100, 100 - r.position * 3))}%"></span></span></td>
+      <td class="num-cell">${r.position.toFixed(1)}<span class="pbar"><span class="pbf" style="width:${Math.max(4, Math.min(100, 100 - r.position * 3))}%"></span></span></td>
       <td>${mkBadge(r.deltaPosPop,  true)}</td>
       <td>${mkBadge(r.deltaPosYoy,  true)}</td>
-      <td>${(r.ctr * 100).toFixed(2)}%</td>
+      <td class="num-cell">${(r.ctr * 100).toFixed(2)}%</td>
     </tr>`;
   }).join('');
 }
