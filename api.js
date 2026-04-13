@@ -102,12 +102,18 @@ export async function loadGa4Props() {
 
 // ── MAIN LOAD ──
 
+// shared URL normalizer — call this everywhere we read url-filter
+export function getCleanUrl() {
+  const raw = document.getElementById('url-filter').value.trim();
+  const clean = raw
+    .replace(/^https?:\/\/[^/]+/, '')  // strip https://us.koala.com
+    .replace(/\/+$/, '');               // strip trailing slashes
+  if (clean !== raw) document.getElementById('url-filter').value = clean;
+  return clean;
+}
+
 export async function loadAll() {
-  // normalize URL filter: strip domain + trailing slash
-  const rawUrl = document.getElementById('url-filter').value.trim();
-  const normUrl = rawUrl.replace(/^https?:\/\/[^\/]+/, '').replace(/\/+$/, '');
-  if (normUrl !== rawUrl) document.getElementById('url-filter').value = normUrl;
-  const uf    = normUrl;
+  const uf    = getCleanUrl();
   const dates = getDates();
 
   document.getElementById('section-title').textContent =
@@ -143,8 +149,7 @@ function setLoadingSkeletons() {
 
 export async function loadGsc(site) {
   const { start, end, popStart, popEnd, yoyStart, yoyEnd } = getDates();
-  const uf = document.getElementById('url-filter').value.trim()
-    .replace(/^https?:\/\/[^\/]+/, '').replace(/\/+$/, '');
+  const uf = getCleanUrl();
   const pf = uf ? [{ dimension: 'page', operator: 'contains', expression: uf }] : null;
   const cf = S.selCountry ? [{ dimension: 'country', operator: 'equals', expression: S.selCountry }] : null;
   const af = [...(pf||[]), ...(cf||[])];
@@ -234,11 +239,7 @@ export async function loadGsc(site) {
 
 export async function loadGa4(propId) {
   const { start, end, popStart, popEnd, yoyStart, yoyEnd } = getDates();
-  const rawUf = document.getElementById('url-filter').value.trim();
-  // strip domain if user pasted full URL, normalize trailing slash
-  const uf = rawUf
-    .replace(/^https?:\/\/[^\/]+/, '')   // remove https://domain.com
-    .replace(/\/+$/, '');                    // remove trailing slashes
+  const uf = getCleanUrl();
 
   const orgF = { orGroup: { expressions: [
     { filter: { fieldName: 'sessionDefaultChannelGroup', stringFilter: { matchType: 'EXACT', value: 'Organic Search' }}},
