@@ -185,10 +185,39 @@ export function setCmp(m) {
 // ── RENDER ALL ────────────────────────────────
 
 export function renderAll() {
+  // seed qData from kwData only if empty (api.js populates it on load)
+  if (!S.qData.length) S.qData = S.kwData.map(r => ({...r}));
+  applySortToQData();
   recalcMetricsFromFiltered();
   renderKeywords();
   renderWinners();
   renderLosers();
+  requestAnimationFrame(updateSortHeaders);
+}
+
+function applySortToQData() {
+  const col = S.qSort.col;
+  const dir = S.qSort.dir;
+  S.qData.sort((a, b) => {
+    const av = a[col], bv = b[col];
+    // string sort for query column
+    if (col === 'query') return av.localeCompare(bv) * dir;
+    // nulls always go to bottom regardless of direction
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    return (av > bv ? 1 : -1) * dir;
+  });
+}
+
+
+// ── POSITION COLOR ────────────────────────────
+function posColor(pos) {
+  if (pos <= 5)  return 'pos-top';
+  if (pos <= 10) return 'pos-good';
+  if (pos <= 15) return 'pos-mid';
+  if (pos <= 20) return 'pos-low';
+  return 'pos-out';
 }
 
 // ── BADGE HELPER ──────────────────────────────
@@ -220,7 +249,8 @@ function applyHeatmap() {
 
 export function renderKeywords() {
   const q    = document.getElementById('kw-search').value.toLowerCase();
-  let   data = filtBrand(S.kwData).filter(r => r.query.toLowerCase().includes(q));
+  // filtBrand on qData preserves sort order (qData is already sorted)
+  let   data = filtBrand(S.qData.map(r => ({...r}))).filter(r => r.query.toLowerCase().includes(q));
   if (S.kwTab === 'up') data = data.filter(r => (r.delta != null && r.delta > 5)   || (r.deltaYoy != null && r.deltaYoy > 5));
   if (S.kwTab === 'dn') data = data.filter(r => (r.delta != null && r.delta < -5)  || (r.deltaYoy != null && r.deltaYoy < -5));
   const tb = document.getElementById('kw-body');
@@ -244,14 +274,14 @@ export function renderKeywords() {
     const rowCls  = isOpp ? ' class="opp-row"' : '';
     const oppTag  = isOpp ? '<span class="opp-badge">opportunity</span>' : '';
     return `<tr${rowCls}>
-      <td><span class="rn">${i + 1}</span><span class="kwc kw-drill" title="Click to filter" onclick="window.__drillKeyword('${r.query.replace(/'/g,"\'")}' )">${r.query}</span>${bb}${oppTag}</td>
+      <td><span class="rn">${i + 1}</span><span class="kwc kw-drill" title="Click to filter" onclick="window.__showKwChart('${r.query.replace(/'/g,"\'")}') )">${r.query}</span>${bb}${oppTag}</td>
       <td class="num-cell">${fmt(r.clicks)}</td>
       <td>${mkBadge(r.delta,        false)}</td>
       <td>${mkBadge(r.deltaYoy,     false)}</td>
       <td class="num-cell">${fmt(r.impressions)}</td>
       <td>${mkBadge(r.deltaImprPop, false)}</td>
       <td>${mkBadge(r.deltaImprYoy, false)}</td>
-      <td class="num-cell">${r.position.toFixed(1)}<span class="pbar"><span class="pbf" style="width:${Math.max(4, Math.min(100, 100 - r.position * 3))}%"></span></span></td>
+      <td class="num-cell pos-cell ${posColor(r.position)}">${r.position.toFixed(1)}</td>
       <td>${mkBadge(r.deltaPosPop,  true)}</td>
       <td>${mkBadge(r.deltaPosYoy,  true)}</td>
       <td class="num-cell">${(r.ctr * 100).toFixed(2)}%</td>
@@ -310,16 +340,221 @@ export function exportCsv() {
   a.click(); URL.revokeObjectURL(url);
 }
 
+
+// ── KEYWORD SPARKLINE MODAL ───────────────────
+
+export function showKwModal(query) {
+  const kw = S.kwData.find(r => r.query === query);
+  if (!kw) return;
+  // create or reuse modal
+  let modal = document.getElementById('kw-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'kw-modal';
+    modal.className = 'kw-modal';
+    modal.innerHTML = `
+      <div class="kw-modal-overlay" onclick="window.__closeKwModal()"></div>
+      <div class="kw-modal-box">
+        <div class="kw-modal-hdr">
+          <span class="kw-modal-title" id="kw-modal-title"></span>
+          <button class="kw-modal-cls" onclick="window.__closeKwModal()">✕</button>
+        </div>
+        <div class="kw-modal-stats" id="kw-modal-stats"></div>
+        <div class="kw-modal-note">12-month trend from GSC daily data — click, impressions &amp; position</div>
+        <div class="kw-modal-chart-wrap">
+          <canvas id="kw-modal-canvas" height="160"></canvas>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('kw-modal-title').textContent = query;
+  document.getElementById('kw-modal-stats').innerHTML = `
+    <div class="kw-stat"><span class="kw-stat-lbl">Clicks</span><span class="kw-stat-val">${fmt(kw.clicks)}</span></div>
+    <div class="kw-stat"><span class="kw-stat-lbl">Impressions</span><span class="kw-stat-val">${fmt(kw.impressions)}</span></div>
+    <div class="kw-stat"><span class="kw-stat-lbl">Position</span><span class="kw-stat-val">${kw.position.toFixed(1)}</span></div>
+    <div class="kw-stat"><span class="kw-stat-lbl">CTR</span><span class="kw-stat-val">${(kw.ctr*100).toFixed(2)}%</span></div>`;
+  modal.style.display = 'flex';
+  // load 12-month chart data for this keyword
+  loadKwHistory(query);
+}
+
+export function closeKwModal() {
+  const m = document.getElementById('kw-modal');
+  if (m) m.style.display = 'none';
+}
+
+async function loadKwHistory(query) {
+  // 12-month daily data for this specific keyword
+  const end   = new Date(); end.setDate(end.getDate() - 3);
+  const start = new Date(end); start.setFullYear(start.getFullYear() - 1);
+  const ds    = d => d.toISOString().split('T')[0];
+  const site  = S.selGsc;
+  if (!site) return;
+  const body = {
+    startDate: ds(start), endDate: ds(end),
+    dimensions: ['date'],
+    rowLimit: 365,
+    dimensionFilterGroups: [{ filters: [{ dimension: 'query', operator: 'equals', expression: query }] }],
+  };
+  try {
+    const res = await fetch(
+      \`https://www.googleapis.com/webmasters/v3/sites/\${encodeURIComponent(site)}/searchAnalytics/query\`,
+      { method: 'POST', body: JSON.stringify(body), headers: { Authorization: 'Bearer ' + S.token, 'Content-Type': 'application/json' } }
+    );
+    const data = await res.json();
+    const rows = (data.rows || []).sort((a,b) => a.keys[0].localeCompare(b.keys[0]));
+    const labels = rows.map(r => {
+      const dt = new Date(r.keys[0] + 'T00:00:00');
+      return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    });
+    const clicks = rows.map(r => r.clicks);
+    const impr   = rows.map(r => r.impressions);
+    const pos    = rows.map(r => +r.position.toFixed(1));
+    const canvas = document.getElementById('kw-modal-canvas');
+    if (!canvas) return;
+    if (window.__kwChart) { window.__kwChart.destroy(); window.__kwChart = null; }
+    window.__kwChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Clicks',       data: clicks, borderColor: '#7c6dfa', backgroundColor: 'rgba(124,109,250,.07)', fill: true, borderWidth: 2, pointRadius: 0, tension: .4, yAxisID: 'y' },
+          { label: 'Impressions',  data: impr,   borderColor: '#5b9cf6', backgroundColor: 'transparent', borderWidth: 1.5, borderDash: [4,3], pointRadius: 0, tension: .4, yAxisID: 'y' },
+          { label: 'Position',     data: pos,    borderColor: '#f5a623', backgroundColor: 'transparent', borderWidth: 1.5, borderDash: [2,4], pointRadius: 0, tension: .4, yAxisID: 'y2' },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: true, labels: { color: '#9090a8', font: { family: 'Inter', size: 10 }, boxWidth: 12, padding: 16 } }, tooltip: { mode: 'index', intersect: false, backgroundColor: 'rgba(26,26,36,.97)', borderColor: 'rgba(255,255,255,.1)', borderWidth: 1, titleColor: '#9090a8', bodyColor: '#e8e8f0', titleFont: { family: 'Inter', size: 10 }, bodyFont: { family: 'Inter', size: 11 } } },
+        scales: {
+          x:  { grid: { color: 'rgba(255,255,255,.04)', drawBorder: false }, ticks: { color: '#55556a', font: { family: 'Inter', size: 9 }, maxTicksLimit: 12 } },
+          y:  { position: 'left',  grid: { color: 'rgba(255,255,255,.04)', drawBorder: false }, ticks: { color: '#55556a', font: { family: 'Inter', size: 9 }, maxTicksLimit: 5 } },
+          y2: { position: 'right', reverse: true, grid: { display: false }, ticks: { color: '#f5a623', font: { family: 'Inter', size: 9 }, maxTicksLimit: 4 } },
+        },
+        interaction: { mode: 'index', intersect: false },
+      },
+    });
+  } catch(e) { console.error('KW history error', e); }
+}
+
+
+
+// ── KEYWORD SPARKLINE MODAL ───────────────────
+
+export async function showKeywordChart(keyword) {
+  // remove existing modal if any
+  const old = document.getElementById('kw-modal');
+  if (old) old.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'kw-modal';
+  modal.className = 'kw-modal-overlay';
+  modal.innerHTML = `
+    <div class="kw-modal-card" onclick="event.stopPropagation()">
+      <div class="kw-modal-header">
+        <div class="kw-modal-title">${keyword}</div>
+        <div class="kw-modal-sub">Last 12 months — Clicks, Impressions &amp; Position</div>
+        <button class="kw-modal-close" onclick="document.getElementById('kw-modal').remove()">✕</button>
+      </div>
+      <div class="kw-modal-body">
+        <div class="kw-modal-loading"><div class="skel" style="width:100%;height:200px;border-radius:8px"></div></div>
+        <canvas id="kw-sparkline" height="200" style="display:none"></canvas>
+      </div>
+    </div>`;
+  modal.addEventListener('click', () => modal.remove());
+  document.body.appendChild(modal);
+
+  // fetch 12 months of data for this keyword
+  try {
+    const { S: st, METRICS: _m } = await import('./state.js');
+    const { GSC_BASE } = await import('./config.js');
+    const end = new Date(); end.setDate(end.getDate() - 3);
+    const start = new Date(end); start.setFullYear(start.getFullYear() - 1);
+    const ds = d => d.toISOString().split('T')[0];
+    const token = sessionStorage.getItem('seo_tok');
+    const site = st.selGsc;
+    if (!site || !token) { modal.querySelector('.kw-modal-loading').innerHTML = '<div class="empty-sub">No GSC property selected.</div>'; return; }
+
+    const body = {
+      startDate: ds(start), endDate: ds(end),
+      dimensions: ['date'],
+      rowLimit: 365,
+      dimensionFilterGroups: [{ filters: [{ dimension: 'query', operator: 'equals', expression: keyword }] }]
+    };
+    const res = await fetch(`${GSC_BASE}/sites/${encodeURIComponent(site)}/searchAnalytics/query`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    const rows = (data.rows || []).sort((a, b) => a.keys[0].localeCompare(b.keys[0]));
+
+    const labels = rows.map(r => {
+      const dt = new Date(r.keys[0] + 'T00:00:00');
+      return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    });
+    const clicks      = rows.map(r => r.clicks);
+    const impressions = rows.map(r => r.impressions);
+    const positions   = rows.map(r => +r.position.toFixed(1));
+
+    modal.querySelector('.kw-modal-loading').style.display = 'none';
+    const canvas = modal.querySelector('#kw-sparkline');
+    canvas.style.display = 'block';
+
+    new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Clicks', data: clicks, borderColor: '#7c6dfa', backgroundColor: 'rgba(124,109,250,0.07)', fill: true, borderWidth: 2, pointRadius: 0, tension: .4, yAxisID: 'yClicks' },
+          { label: 'Impressions', data: impressions, borderColor: '#5b9cf6', backgroundColor: 'transparent', borderWidth: 1.5, borderDash: [4, 3], pointRadius: 0, tension: .4, yAxisID: 'yImpr' },
+          { label: 'Avg. Position', data: positions, borderColor: '#f5a623', backgroundColor: 'transparent', borderWidth: 2, borderDash: [2, 4], pointRadius: 0, tension: .4, yAxisID: 'yPos' },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'top', labels: { color: '#9090a8', font: { family: 'Inter', size: 10 }, boxWidth: 8, padding: 16 } },
+          tooltip: { mode: 'index', intersect: false, backgroundColor: 'rgba(26,26,36,.97)', borderColor: 'rgba(255,255,255,.1)', borderWidth: 1, titleColor: '#9090a8', bodyColor: '#e8e8f0', titleFont: { family: 'Inter', size: 10 }, bodyFont: { family: 'Inter', size: 11 }, padding: 10 }
+        },
+        scales: {
+          x: { grid: { color: 'rgba(255,255,255,.04)', drawBorder: false }, ticks: { color: '#55556a', font: { family: 'Inter', size: 9 }, maxTicksLimit: 10 } },
+          yClicks: { position: 'left',  grid: { color: 'rgba(255,255,255,.04)', drawBorder: false }, ticks: { color: '#7c6dfa', font: { family: 'Inter', size: 9 }, maxTicksLimit: 5 } },
+          yImpr:   { position: 'left',  display: false },
+          yPos:    { position: 'right', reverse: true, grid: { drawOnChartArea: false }, ticks: { color: '#f5a623', font: { family: 'Inter', size: 9 }, maxTicksLimit: 5 } },
+        },
+        interaction: { mode: 'index', intersect: false }
+      }
+    });
+  } catch (e) {
+    modal.querySelector('.kw-modal-loading').innerHTML = `<div class="empty-sub">Could not load data: ${e.message}</div>`;
+  }
+}
+
 // ── SORT ──────────────────────────────────────
 
 export function sortQ(col) {
   if (S.qSort.col === col) S.qSort.dir *= -1;
   else { S.qSort.col = col; S.qSort.dir = -1; }
-  S.qData.sort((a, b) => {
-    const av = a[col] ?? -Infinity, bv = b[col] ?? -Infinity;
-    return (av > bv ? 1 : -1) * S.qSort.dir;
-  });
+  applySortToQData();
+  updateSortHeaders();
   renderKeywords();
+}
+
+function updateSortHeaders() {
+  document.querySelectorAll('.dt th[data-col]').forEach(th => {
+    // store original label once
+    if (!th.dataset.label) th.dataset.label = th.textContent.replace(/[↑↓↕\s]+$/,'').trim();
+    const base = th.dataset.label;
+    if (th.dataset.col === S.qSort.col) {
+      th.textContent = base + (S.qSort.dir === -1 ? ' ↓' : ' ↑');
+      th.style.color = 'var(--accent-l)';
+    } else {
+      th.textContent = base + ' ↕';
+      th.style.color = '';
+    }
+  });
 }
 
 // ── PICKERS ───────────────────────────────────
