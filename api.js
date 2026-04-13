@@ -60,7 +60,8 @@ async function api(url, opts = {}) {
 function ds(d) { return d.toISOString().split('T')[0]; }
 
 export function getDates() {
-  const end = new Date(); end.setDate(end.getDate() - 1);
+  // GSC data lags 2-3 days — end at 3 days ago to ensure data exists
+  const end = new Date(); end.setDate(end.getDate() - 3);
   const start = new Date(end); start.setDate(start.getDate() - S.days);
   const popEnd = new Date(start); popEnd.setDate(popEnd.getDate() - 1);
   const popStart = new Date(popEnd); popStart.setDate(popStart.getDate() - S.days);
@@ -70,7 +71,14 @@ export function getDates() {
     start:    ds(start),    end:    ds(end),
     popStart: ds(popStart), popEnd: ds(popEnd),
     yoyStart: ds(yoyStart), yoyEnd: ds(yoyEnd),
+    // human-readable for display
+    label: fmtDateRange(start, end),
   };
+}
+
+function fmtDateRange(start, end) {
+  const opts = { day: 'numeric', month: 'short' };
+  return start.toLocaleDateString('en-GB', opts) + ' – ' + end.toLocaleDateString('en-GB', opts);
 }
 
 // ── PROPERTY LOADERS ─────────────────────────
@@ -106,7 +114,10 @@ export async function loadGa4Props() {
 
 export async function loadAll() {
   const uf = document.getElementById('url-filter').value.trim();
-  document.getElementById('metrics-title').textContent = uf ? `Drill-down — ${uf}` : 'Overview — sitewide';
+  const dates = getDates();
+  const title = uf ? `Drill-down — ${uf}` : 'Overview — sitewide';
+  document.getElementById('metrics-title').textContent = title;
+  document.getElementById('date-range-lbl').textContent = dates.label;
   document.getElementById('drill-bar').style.display   = uf ? 'flex' : 'none';
   document.getElementById('drill-lbl').textContent     = uf;
   document.getElementById('btn-clr').style.display     = uf ? 'inline-block' : 'none';
@@ -127,7 +138,7 @@ export async function loadGsc(site) {
   const cf = S.selCountry ? [{ dimension: 'country', operator: 'equals',   expression: S.selCountry }] : null;
   const allF = [...(pf || []), ...(cf || [])];
   const mkB = (s, e, dims, filters) => ({
-    startDate: s, endDate: e, dimensions: dims, rowLimit: 500,
+    startDate: s, endDate: e, dimensions: dims, rowLimit: 100,
     ...(filters && filters.length ? { dimensionFilterGroups: [{ filters }] } : {}),
   });
   const post = b => api(`${GSC_BASE}/sites/${encodeURIComponent(site)}/searchAnalytics/query`, {
