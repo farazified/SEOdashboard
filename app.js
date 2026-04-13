@@ -15,7 +15,7 @@ import {
   recalcMetricsFromFiltered, updateDeltas, setCmp,
   getBrandTerms, filtBrand, isBrand,
   startDrag, startResize, restoreWidgetPositions,
-  setLoading, sortQ,
+  setLoading, sortQ, exportCsv,
 } from './render.js';
 
 // ── BOOT ──────────────────────────────────────
@@ -76,8 +76,16 @@ window.__renderKeywords = renderKeywords;
 window.__recalcMetrics  = recalcMetricsFromFiltered;
 window.__setCmp         = setCmp;
 window.__sortQ          = sortQ;
+window.__exportCsv      = exportCsv;
 window.__startDrag      = startDrag;
 window.__startResize    = startResize;
+
+window.__drillKeyword = (kw) => {
+  document.getElementById('url-filter').value = '';
+  // set keyword search to isolate that keyword
+  document.getElementById('kw-search').value = kw;
+  window.__renderKeywords();
+};
 
 window.__clearDrill = () => {
   document.getElementById('url-filter').value = '';
