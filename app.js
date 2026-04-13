@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────
 
 import { CLIENT_ID }                           from './config.js';
+import { openKeywordChart, closeKeywordChart }  from './keyword-chart.js';
 import { S }                                   from './state.js';
 import { doOAuth, handleOAuthRedirect, signOut, loadGscProps, loadGa4Props, loadAll } from './api.js';
 import {
@@ -15,7 +16,7 @@ import {
   recalcMetricsFromFiltered, updateDeltas, setCmp,
   getBrandTerms, filtBrand, isBrand,
   startDrag, startResize, restoreWidgetPositions,
-  setLoading, sortQ, exportCsv,
+  setLoading, sortQ, exportCsv, showKeywordChart,
 } from './render.js';
 
 // ── BOOT ──────────────────────────────────────
@@ -77,15 +78,14 @@ window.__recalcMetrics  = recalcMetricsFromFiltered;
 window.__setCmp         = setCmp;
 window.__sortQ          = sortQ;
 window.__exportCsv      = exportCsv;
+window.__showKwChart    = showKeywordChart;
 window.__startDrag      = startDrag;
 window.__startResize    = startResize;
 
 window.__drillKeyword = (kw) => {
-  document.getElementById('url-filter').value = '';
-  // set keyword search to isolate that keyword
-  document.getElementById('kw-search').value = kw;
-  window.__renderKeywords();
+  openKeywordChart(kw);
 };
+window.__closeKwChart = closeKeywordChart;
 
 window.__clearDrill = () => {
   document.getElementById('url-filter').value = '';
