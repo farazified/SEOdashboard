@@ -76,6 +76,8 @@ if (document.readyState === 'loading') {
 async function showApp() {
   document.getElementById('setup-overlay').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  renderCountryOpts('');
+  restoreWidgetPositions();
   await Promise.all([loadGscProps(), loadGa4Props()]);
   loadAll();
 }
