@@ -57,8 +57,9 @@ export function recalcFiltered() {
   const tN=all.length, fN=filt.length;
   const tPos=tN?tPs/tN:null, fPos=fN?fPs/fN:null;
   const tCtr=tN?tCs/tN:null, fCtr=fN?fCs/fN:null;
-  const hasF = S.hideBranded && fN<tN;
-  const lbl  = hasF ? `−${tN-fN} kw` : 'no filter';
+  const urlF = !!document.getElementById('url-filter')?.value.trim();
+  const hasF = (S.hideBranded && fN<tN) || urlF;
+  const lbl  = hasF ? (S.hideBranded && fN<tN ? `−${tN-fN} kw` : 'filtered') : 'no filter';
 
   document.getElementById('m-clicks').textContent = fmt(tCl);
   document.getElementById('m-impr').textContent   = fmt(tIm);
@@ -83,16 +84,16 @@ export function recalcFiltered() {
     document.getElementById(el+'-diff').innerHTML = html || '<span class="fdiff">same as total</span>';
   };
 
-  // clicks: show % of total + mini bar
+  // clicks: always show % of total + mini bar when filter active
   const clPct = tCl>0 ? (fCl/tCl*100).toFixed(1) : null;
-  const clExtra = hasF
+  const clExtra = (hasF && clPct!=null)
     ? `<div class="filt-pct-row"><div class="filt-bar-wrap"><div class="filt-bar" style="width:${clPct}%"></div></div><span class="fdiff saved">${clPct}% of total</span></div>`
     : '';
   fd('fv-cl', fmt(fCl), fClPop, fClYoy, clExtra, false);
 
   // impressions: same
   const imPct = tIm>0 ? (fIm/tIm*100).toFixed(1) : null;
-  const imExtra = hasF
+  const imExtra = (hasF && imPct!=null)
     ? `<div class="filt-pct-row"><div class="filt-bar-wrap"><div class="filt-bar" style="width:${imPct}%"></div></div><span class="fdiff saved">${imPct}% of total</span></div>`
     : '';
   fd('fv-im', fmt(fIm), fImPop, fImYoy, imExtra, false);
@@ -299,10 +300,11 @@ export function exportCsv() {
 let _kwAllRows = [];
 let _kwActive  = null;
 let _kwChart   = null;
+let _pendingDays = 365;
 
 export async function showKwChart(keyword) {
   document.getElementById('kw-modal')?.remove();
-  _kwAllRows = []; _kwActive = keyword;
+  _kwAllRows = []; _kwActive = keyword; _pendingDays = 365;
 
   const modal = document.createElement('div');
   modal.id = 'kw-modal';
@@ -329,13 +331,18 @@ export async function showKwChart(keyword) {
   modal.addEventListener('click', () => modal.remove());
   document.body.appendChild(modal);
 
-  // range pill click
+  // range pill click — uses onclick so it works after fetch too
   modal.querySelectorAll('.kw-pill').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      modal.querySelectorAll('.kw-pill').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#kw-modal .kw-pill').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      _renderKwChart(parseInt(btn.dataset.days));
+      if (_kwAllRows.length) {
+        _renderKwChart(parseInt(btn.dataset.days));
+      } else {
+        // data still loading — store selected days and render when ready
+        _pendingDays = parseInt(btn.dataset.days);
+      }
     });
   });
 
@@ -359,7 +366,7 @@ export async function showKwChart(keyword) {
     if (!res.ok) throw new Error('API error '+res.status);
     const data = await res.json();
     _kwAllRows = (data.rows||[]).sort((a,b)=>a.keys[0].localeCompare(b.keys[0]));
-    _renderKwChart(365);
+    _renderKwChart(_pendingDays);
   } catch(e) {
     const b = document.getElementById('kw-modal-body');
     if (b) b.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Could not load data</div><div class="empty-sub">${e.message}</div></div>`;
