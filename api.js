@@ -13,8 +13,10 @@ import { buildCharts } from './charts.js';
 // ── AUTH ──────────────────────────────────────
 
 export function doOAuth() {
+  const cid = S.clientId || CLIENT_ID;
+  if (!cid) { console.error('No Client ID available'); return; }
   const p = new URLSearchParams({
-    client_id:     S.clientId,
+    client_id:     cid,
     redirect_uri:  location.origin + location.pathname,
     response_type: 'token',
     scope:         SCOPES,
