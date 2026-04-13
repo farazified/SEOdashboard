@@ -358,3 +358,42 @@ canvas       { display: block; width: 100% !important; }
 .empty-icon  { font-size: 28px; margin-bottom: 10px; opacity: .5; }
 .empty-title { font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
 .empty-sub   { font-size: 12px; color: var(--text3); line-height: 1.6; }
+
+/* ── POSITION COLORS ─────────────────────────── */
+.pos-cell          { font-weight: 700 !important; border-radius: 4px; padding: 3px 8px !important; text-align: center; }
+.pos-top           { color: #3ecf8e; background: rgba(62,207,142,0.12); }   /* 1–5   green   */
+.pos-good          { color: #5b9cf6; background: rgba(91,156,246,0.12); }   /* 5–10  blue    */
+.pos-mid           { color: #f5a623; background: rgba(245,166,35,0.12); }   /* 10–15 amber   */
+.pos-low           { color: #f06070; background: rgba(240,96,112,0.12); }   /* 15–20 red     */
+.pos-out           { color: var(--text3); background: transparent; }        /* 20+   muted   */
+
+/* ── KEYWORD SPARKLINE MODAL ─────────────────── */
+.kw-modal-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  animation: fadeIn .15s ease;
+}
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+.kw-modal-card {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 24px;
+  width: 100%;
+  max-width: 820px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  animation: slideUp .2s ease;
+}
+@keyframes slideUp { from { transform:translateY(16px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+
+.kw-modal-header   { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+.kw-modal-title    { font-family: var(--sans); font-size: 18px; font-weight: 700; color: var(--text); flex: 1; }
+.kw-modal-sub      { font-size: 12px; color: var(--text3); font-family: var(--body); margin-top: 3px; }
+.kw-modal-close    { background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px; color: var(--text2); font-size: 14px; cursor: pointer; padding: 4px 10px; transition: all .15s; flex-shrink: 0; }
+.kw-modal-close:hover { border-color: var(--red); color: var(--red); }
+.kw-modal-body     { position: relative; height: 280px; }
+.kw-modal-loading  { padding: 20px 0; }
