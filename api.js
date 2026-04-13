@@ -213,7 +213,8 @@ export async function loadGsc(site) {
         deltaPosYoy:  yy ? fmtD(r.position,    yy.position)     : null,
       };
     }).sort((a, b) => b.clicks - a.clicks);
-    S.qData = [...S.kwData];
+    // seed qData fresh — renderAll will apply current sort
+    S.qData = S.kwData.map(r => ({...r}));
 
     renderAll();
     buildCharts(curD.rows || [], popD.rows || [], yoyD.rows || []);
