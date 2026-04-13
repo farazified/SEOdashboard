@@ -97,47 +97,77 @@ export function recalcMetricsFromFiltered() {
 
   ['cl','im','pos','ctr'].forEach(k => document.getElementById(`filter-label-${k}`).textContent = lbl);
 
+  // helper: build PoP + YoY delta rows for filtered sub-cards
+  function fDeltaRows(pop, yoy, inv) {
+    const rows = [];
+    const sp = S.cmpMode === 'pop'  || S.cmpMode === 'both';
+    const sy = S.cmpMode === 'yoy'  || S.cmpMode === 'both';
+    if (sp && pop != null) {
+      const cls = (inv ? pop < 0 : pop > 0) ? 'up' : 'dn';
+      rows.push(`<div class="drow"><span class="dtag">PoP</span><span class="dval ${cls}">${pop > 0 ? '+' : ''}${pop}%</span></div>`);
+    }
+    if (sy && yoy != null) {
+      const cls = (inv ? yoy < 0 : yoy > 0) ? 'up' : 'dn';
+      rows.push(`<div class="drow"><span class="dtag">YoY</span><span class="dval ${cls}">${yoy > 0 ? '+' : ''}${yoy}%</span></div>`);
+    }
+    return rows.join('');
+  }
+
+  // recalc filtered deltas from keyword-level prev/yoy data
+  const popCl  = filt.reduce((a, r) => a + (r.prevClicks  || 0), 0);
+  const yoyCl  = filt.reduce((a, r) => a + (r.yoyClicks   || 0), 0);
+  const popIm  = filt.reduce((a, r) => a + (r.prevImpr    || 0), 0);
+  const yoyIm  = filt.reduce((a, r) => a + (r.yoyImpr     || 0), 0);
+  const fClPop = fmtD(fCl,  popCl);
+  const fClYoy = fmtD(fCl,  yoyCl);
+  const fImPop = fmtD(fIm,  popIm);
+  const fImYoy = fmtD(fIm,  yoyIm);
+
   // clicks filtered
   const clEl = document.getElementById('m-clicks-f');
   clEl.textContent = fmt(fCl);
   clEl.className   = 'fval' + (hasFilter ? ' has-filter' : '');
   const clDiff = tCl - fCl;
-  document.getElementById('m-clicks-diff').innerHTML = hasFilter
-    ? `<span class="fdiff saved">−${fmt(clDiff)} from branded (${((clDiff / tCl) * 100).toFixed(1)}%)</span>`
-    : '<span class="fdiff">same as total</span>';
+  document.getElementById('m-clicks-diff').innerHTML =
+    (hasFilter ? `<span class="fdiff saved">−${fmt(clDiff)} branded (${((clDiff / tCl) * 100).toFixed(1)}%)</span><br>` : '') +
+    fDeltaRows(fClPop, fClYoy, false) ||
+    '<span class="fdiff">same as total</span>';
 
   // impressions filtered
   const imEl = document.getElementById('m-impr-f');
   imEl.textContent = fmt(fIm);
   imEl.className   = 'fval' + (hasFilter ? ' has-filter' : '');
   const imDiff = tIm - fIm;
-  document.getElementById('m-impr-diff').innerHTML = hasFilter
-    ? `<span class="fdiff saved">−${fmt(imDiff)} from branded (${((imDiff / tIm) * 100).toFixed(1)}%)</span>`
-    : '<span class="fdiff">same as total</span>';
+  document.getElementById('m-impr-diff').innerHTML =
+    (hasFilter ? `<span class="fdiff saved">−${fmt(imDiff)} branded (${((imDiff / tIm) * 100).toFixed(1)}%)</span><br>` : '') +
+    fDeltaRows(fImPop, fImYoy, false) ||
+    '<span class="fdiff">same as total</span>';
 
-  // position filtered
-  const posEl  = document.getElementById('m-pos-f');
+  // position filtered — use keyword-level position deltas aggregated
+  const fPosPop = filt.length && fPos != null ? fmtD(fPos, filt.reduce((a, r) => a + (r.prevPos || r.position), 0) / filt.length) : null;
+  const fPosYoy = filt.length && fPos != null ? fmtD(fPos, filt.reduce((a, r) => a + (r.yoyPos  || r.position), 0) / filt.length) : null;
+  const posEl   = document.getElementById('m-pos-f');
   posEl.textContent = fPos != null ? fPos.toFixed(1) : '—';
   posEl.className   = 'fval' + (hasFilter ? ' has-filter' : '');
   const posDiff = fPos != null && tPos != null ? +(fPos - tPos).toFixed(1) : null;
-  document.getElementById('m-pos-diff').innerHTML = hasFilter && posDiff != null
-    ? `<span class="fdiff ${posDiff < 0 ? 'saved' : 'added'}">${posDiff > 0 ? '+' : ''}${posDiff} without branded</span>`
-    : '<span class="fdiff">same as total</span>';
+  document.getElementById('m-pos-diff').innerHTML =
+    (hasFilter && posDiff != null ? `<span class="fdiff ${posDiff < 0 ? 'saved' : 'added'}">${posDiff > 0 ? '+' : ''}${posDiff} vs total</span><br>` : '') +
+    fDeltaRows(fPosPop, fPosYoy, true) ||
+    '<span class="fdiff">same as total</span>';
 
   // CTR filtered
-  const ctrEl  = document.getElementById('m-ctr-f');
+  const fCtrPop = fCtr && tCtr ? fmtD(fCtr, tCtr) : null;
+  const ctrEl   = document.getElementById('m-ctr-f');
   ctrEl.textContent = fCtr != null ? (fCtr * 100).toFixed(2) + '%' : '—';
   ctrEl.className   = 'fval' + (hasFilter ? ' has-filter' : '');
   const ctrDiff = fCtr != null && tCtr != null ? +((fCtr - tCtr) * 100).toFixed(2) : null;
-  document.getElementById('m-ctr-diff').innerHTML = hasFilter && ctrDiff != null
-    ? `<span class="fdiff ${ctrDiff > 0 ? 'saved' : 'added'}">${ctrDiff > 0 ? '+' : ''}${ctrDiff}% without branded</span>`
-    : '<span class="fdiff">same as total</span>';
+  document.getElementById('m-ctr-diff').innerHTML =
+    (hasFilter && ctrDiff != null ? `<span class="fdiff ${ctrDiff > 0 ? 'saved' : 'added'}">${ctrDiff > 0 ? '+' : ''}${ctrDiff}% vs total</span><br>` : '') +
+    fDeltaRows(METRICS.ctrPop, METRICS.ctrYoy, false) ||
+    '<span class="fdiff">same as total</span>';
 
-  // recalc click deltas on filtered set
-  const popCl = filt.reduce((a, r) => a + (r.prevClicks || 0), 0);
-  const yoyCl = filt.reduce((a, r) => a + (r.yoyClicks  || 0), 0);
-  METRICS.clicksPop = fmtD(fCl, popCl);
-  METRICS.clicksYoy = fmtD(fCl, yoyCl);
+  METRICS.clicksPop = fClPop;
+  METRICS.clicksYoy = fClYoy;
   document.getElementById('m-clicks-d').innerHTML = deltaRows(METRICS.clicksPop, METRICS.clicksYoy, false);
 }
 
