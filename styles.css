@@ -297,3 +297,22 @@ canvas        { display: block; width: 100% !important; }
 
 /* update modal header to flex-wrap for pills */
 .kw-modal-hdr { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+
+/* ── KEYWORD CHART SERIES TOGGLES ── */
+.kw-toggles {
+  display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap;
+}
+.kw-tog-lbl {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-family: var(--body); color: var(--tx2);
+  cursor: pointer; user-select: none;
+  padding: 4px 10px; border-radius: 20px;
+  border: 1px solid var(--b2);
+  transition: border-color .15s, background .15s;
+}
+.kw-tog-lbl:hover { border-color: var(--b3); background: var(--bg3); }
+.kw-tog-lbl input[type="checkbox"] { display: none; }
+.kw-tog-lbl:has(input:not(:checked)) { opacity: .45; }
+.kw-tog-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
