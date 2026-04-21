@@ -245,9 +245,21 @@ export async function loadGa4(propId) {
     { filter: { fieldName: 'sessionDefaultChannelGroup', stringFilter: { matchType: 'EXACT', value: 'Organic Search' }}},
     { filter: { fieldName: 'sessionDefaultChannelGroup', stringFilter: { matchType: 'EXACT', value: 'Organic Shopping' }}},
   ]}};
+
+  // When filtering by URL, include pagePath as both dimension and filter
+  // so GA4 returns per-page revenue correctly
   const pageF = uf ? { filter: { fieldName: 'pagePath', stringFilter: { matchType: 'CONTAINS', value: uf }}} : null;
   const dimF  = pageF ? { andGroup: { expressions: [orgF, pageF] }} : orgF;
-  const mkB   = (s, e) => ({ dateRanges: [{startDate:s,endDate:e}], metrics: [{name:'sessions'},{name:'purchaseRevenue'}], dimensionFilter: dimF });
+
+  // With URL filter: add pagePath dimension so revenue is attributed correctly
+  const dims  = uf ? [{ name: 'pagePath' }] : [];
+
+  const mkB = (s, e) => ({
+    dateRanges: [{ startDate: s, endDate: e }],
+    ...(dims.length ? { dimensions: dims } : {}),
+    metrics: [{ name: 'sessions' }, { name: 'purchaseRevenue' }],
+    dimensionFilter: dimF,
+  });
 
   try {
     const [c, p, y] = await Promise.all([
@@ -255,8 +267,14 @@ export async function loadGa4(propId) {
       req(`${GA4_BASE}/properties/${propId}:runReport`, { method:'POST', body: JSON.stringify(mkB(popStart,popEnd)) }),
       req(`${GA4_BASE}/properties/${propId}:runReport`, { method:'POST', body: JSON.stringify(mkB(yoyStart,yoyEnd)) }),
     ]);
-    const agg = rows => rows.reduce((a,r) => ({s: a.s+(+r.metricValues[0].value||0), r: a.r+(+r.metricValues[1].value||0)}), {s:0,r:0});
-    const cv=agg(c.rows||[]), pv=agg(p.rows||[]), yv=agg(y.rows||[]);
+
+    // aggregate across all matching pages (rows may be multiple when pagePath dim present)
+    const agg = rows => (rows||[]).reduce((a,r) => ({
+      s: a.s + (+(r.metricValues[0].value)||0),
+      r: a.r + (+(r.metricValues[1].value)||0),
+    }), {s:0, r:0});
+
+    const cv=agg(c.rows), pv=agg(p.rows), yv=agg(y.rows);
 
     document.getElementById('m-sess').textContent = fmt(cv.s);
     document.getElementById('m-rev').textContent  = fmtMoney(cv.r);
@@ -265,7 +283,8 @@ export async function loadGa4(propId) {
 
     const { updateDeltas } = await import('./render.js');
     updateDeltas();
-  } catch {
+  } catch(e) {
+    console.error('GA4 error:', e);
     document.getElementById('m-sess').textContent = 'N/A';
     document.getElementById('m-rev').textContent  = 'N/A';
   }
