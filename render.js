@@ -304,7 +304,7 @@ let _pendingDays = 365;
 
 export async function showKwChart(keyword) {
   document.getElementById('kw-modal')?.remove();
-  _kwAllRows = []; _kwActive = keyword; _pendingDays = 365;
+  _kwAllRows = []; _kwActive = keyword; _pendingDays = 365; _kwVisible = { clicks:true, impr:true, pos:true };
 
   const modal = document.createElement('div');
   modal.id = 'kw-modal';
@@ -380,6 +380,9 @@ function rollingAvg(arr, w=7) {
   });
 }
 
+// which series are visible — persists across range changes
+let _kwVisible = { clicks: true, impr: true, pos: true };
+
 function _renderKwChart(days) {
   const modal = document.getElementById('kw-modal');
   if (!modal || _kwActive === null) return;
@@ -389,41 +392,97 @@ function _renderKwChart(days) {
 
   const body = document.getElementById('kw-modal-body');
   if (!body) return;
-  body.innerHTML = '<canvas id="kw-spark" style="width:100%;height:260px"></canvas>';
+
+  // build toggle checkboxes + canvas
+  body.innerHTML = `
+    <div class="kw-toggles">
+      <label class="kw-tog-lbl" data-series="clicks">
+        <input type="checkbox" ${_kwVisible.clicks?'checked':''} onchange="window._kwToggle('clicks',this.checked)">
+        <span class="kw-tog-dot" style="background:#7c6dfa"></span>Clicks
+      </label>
+      <label class="kw-tog-lbl" data-series="impr">
+        <input type="checkbox" ${_kwVisible.impr?'checked':''} onchange="window._kwToggle('impr',this.checked)">
+        <span class="kw-tog-dot" style="background:#5b9cf6"></span>Impressions
+      </label>
+      <label class="kw-tog-lbl" data-series="pos">
+        <input type="checkbox" ${_kwVisible.pos?'checked':''} onchange="window._kwToggle('pos',this.checked)">
+        <span class="kw-tog-dot" style="background:#f5a623"></span>Avg. Position
+      </label>
+    </div>
+    <canvas id="kw-spark" style="width:100%;height:240px"></canvas>`;
+
   if (_kwChart) { try { _kwChart.destroy(); } catch{} _kwChart=null; }
 
-  const labels   = rows.map(r => new Date(r.keys[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}));
-  const clicks   = rows.map(r=>r.clicks);
-  const impr     = rows.map(r=>r.impressions);
-  const pos      = rows.map(r=>+r.position.toFixed(1));
-  const clicksMA = rollingAvg(clicks, 7);
+  const labels = rows.map(r => new Date(r.keys[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}));
+  const clicks = rows.map(r=>r.clicks);
+  const impr   = rows.map(r=>r.impressions);
+  const pos    = rows.map(r=>+r.position.toFixed(1));
 
   _kwChart = new Chart(document.getElementById('kw-spark'), {
     type:'line',
     data:{
       labels,
       datasets:[
-        { label:'Clicks',          data:clicks,   borderColor:'rgba(124,109,250,.35)', backgroundColor:'transparent', fill:false, borderWidth:1, pointRadius:0, tension:.3, yAxisID:'yL' },
-        { label:'Clicks (7d avg)', data:clicksMA, borderColor:'#7c6dfa',              backgroundColor:'rgba(124,109,250,0.08)', fill:true, borderWidth:2.5, pointRadius:0, tension:.4, yAxisID:'yL' },
-        { label:'Impressions',     data:impr,     borderColor:'#5b9cf6',              backgroundColor:'transparent', fill:false, borderWidth:1.5, borderDash:[4,3], pointRadius:0, tension:.4, yAxisID:'yL' },
-        { label:'Avg. Position',   data:pos,      borderColor:'#f5a623',              backgroundColor:'transparent', fill:false, borderWidth:2, borderDash:[2,4], pointRadius:0, tension:.4, yAxisID:'yR' },
+        {
+          label:'Clicks', data:clicks,
+          borderColor:'#7c6dfa', backgroundColor:'rgba(124,109,250,0.08)',
+          fill:true, borderWidth:2.5, pointRadius:0, tension:.4,
+          yAxisID:'yL', hidden:!_kwVisible.clicks,
+        },
+        {
+          label:'Impressions', data:impr,
+          borderColor:'#5b9cf6', backgroundColor:'transparent',
+          fill:false, borderWidth:2, borderDash:[5,3], pointRadius:0, tension:.4,
+          yAxisID:'yL', hidden:!_kwVisible.impr,
+        },
+        {
+          label:'Avg. Position', data:pos,
+          borderColor:'#f5a623', backgroundColor:'transparent',
+          fill:false, borderWidth:2.5, borderDash:[3,3], pointRadius:0, tension:.4,
+          yAxisID:'yR', hidden:!_kwVisible.pos,
+        },
       ],
     },
     options:{
       responsive:true, maintainAspectRatio:false,
       plugins:{
-        legend:{ display:true, position:'top', labels:{ color:'#9090a8', font:{family:'Inter',size:10}, boxWidth:8, padding:12 }},
-        tooltip:{ mode:'index', intersect:false, backgroundColor:'rgba(26,26,36,.97)', borderColor:'rgba(255,255,255,.1)', borderWidth:1, titleColor:'#9090a8', bodyColor:'#e8e8f0', titleFont:{family:'Inter',size:10}, bodyFont:{family:'Inter',size:11}, padding:10 },
+        legend:{ display:false },
+        tooltip:{
+          mode:'index', intersect:false,
+          backgroundColor:'rgba(26,26,36,.97)', borderColor:'rgba(255,255,255,.1)', borderWidth:1,
+          titleColor:'#9090a8', bodyColor:'#e8e8f0',
+          titleFont:{family:'Inter',size:10}, bodyFont:{family:'Inter',size:11}, padding:10,
+          callbacks:{
+            label: ctx => {
+              if (ctx.datasetIndex === 2) return ` Position: ${ctx.parsed.y}`;
+              if (ctx.datasetIndex === 1) return ` Impressions: ${ctx.parsed.y.toLocaleString()}`;
+              return ` Clicks: ${ctx.parsed.y.toLocaleString()}`;
+            }
+          }
+        },
       },
       scales:{
-        x:  { grid:{color:'rgba(255,255,255,.04)',drawBorder:false}, ticks:{color:'#55556a',font:{family:'Inter',size:9},maxTicksLimit:10} },
-        yL: { position:'left',  grid:{color:'rgba(255,255,255,.04)',drawBorder:false}, ticks:{color:'#7c6dfa',font:{family:'Inter',size:9},maxTicksLimit:5}, title:{display:true,text:'Clicks / Impr.',color:'#55556a',font:{size:9}} },
-        yR: { position:'right', reverse:true, grid:{drawOnChartArea:false}, ticks:{color:'#f5a623',font:{family:'Inter',size:9},maxTicksLimit:5}, title:{display:true,text:'Position (lower = better)',color:'#f5a623',font:{size:9}} },
+        x: { grid:{color:'rgba(255,255,255,.04)',drawBorder:false}, ticks:{color:'#55556a',font:{family:'Inter',size:9},maxTicksLimit:10} },
+        yL:{ position:'left',  grid:{color:'rgba(255,255,255,.04)',drawBorder:false}, ticks:{color:'#7c6dfa',font:{family:'Inter',size:9},maxTicksLimit:6} },
+        yR:{ position:'right', reverse:true, grid:{drawOnChartArea:false}, ticks:{color:'#f5a623',font:{family:'Inter',size:9},maxTicksLimit:6},
+             title:{display:true, text:'↓ lower = better', color:'#f5a623', font:{size:9}} },
       },
       interaction:{ mode:'index', intersect:false },
     },
   });
+
+  // store active days so toggles can re-use it
+  _kwChart._days = days;
 }
+
+// toggle a series on/off without re-fetching
+window._kwToggle = (series, visible) => {
+  _kwVisible[series] = visible;
+  if (!_kwChart) return;
+  const idx = { clicks:0, impr:1, pos:2 }[series];
+  _kwChart.data.datasets[idx].hidden = !visible;
+  _kwChart.update('none');
+};
 
 
 // ── ESCAPE KEY clears keyword filter ──
