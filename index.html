@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEO·IQ</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%237c6dfa'/><text x='16' y='22' text-anchor='middle' font-family='Arial Black' font-weight='900' font-size='15' fill='white'>IQ</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup-overlay">
+  <div class="setup-card">
+    <div class="setup-logo">SEO·IQ</div>
+    <p class="setup-sub">GSC + GA4 in one place. Free, runs in your browser.</p>
+    <button class="btn-signin" onclick="window._signIn()">Sign in with Google →</button>
+    <p class="setup-note">You only need to sign in once per session.<br>Your data never leaves your browser.</p>
+  </div>
+</div>
+
+<!-- PROGRESS BAR (fixed, below sticky topbar) -->
+<div id="progress-bar" class="progress-bar"></div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <span class="tlogo">SEO·IQ</span>
+    <span class="tsep">|</span>
+    <!-- CLIENT SELECTOR -->
+    <div class="client-pick" id="client-pick">
+      <button class="cpick-btn" id="client-btn" onclick="window._toggleClientDrop()">
+        <span class="cpick-icon">👤</span>
+        <span id="client-lbl">Select client…</span>
+        <span class="cpick-caret">▾</span>
+      </button>
+      <div class="client-drop" id="client-drop">
+        <div class="plbl">Client profiles</div>
+        <div class="client-search-wrap">
+          <input class="client-search-inp" id="client-search" type="text" placeholder="Search clients…" autocomplete="off"
+            oninput="window._searchClients(this.value)">
+        </div>
+        <div id="client-opts"></div>
+        <div class="client-drop-footer" onmousedown="window._openClientMgr()">⚙ Manage clients</div>
+      </div>
+    </div>
+    <span class="tsep">|</span>
+    <div class="cwrap">
+      <input class="cinp" id="country-in" type="text" placeholder="All countries…" autocomplete="off"
+        oninput="window._filterCountry()" onfocus="window._openCountry()" onblur="window._closeCountry(300)"/>
+      <div class="cdrop" id="country-drop"><div id="country-opts"></div></div>
+    </div>
+    <button class="user-btn" onclick="window._signOut()">Sign out</button>
+  </div>
+
+  <!-- hidden property value storage -->
+  <input type="hidden" id="gsc-in" value="">
+  <input type="hidden" id="ga4-in" value="">
+
+  <!-- CLIENT MANAGER MODAL -->
+  <div class="mgr-overlay" id="client-mgr" onclick="if(event.target===this)window._closeClientMgr()">
+    <div class="mgr-card">
+      <div class="mgr-hdr">
+        <div>
+          <div class="mgr-title">Client Profiles</div>
+          <div class="mgr-sub">Pair a GSC + GA4 property for one-click switching</div>
+        </div>
+        <button class="mgr-close" onclick="window._closeClientMgr()">✕</button>
+      </div>
+      <div class="mgr-body">
+        <div id="mgr-list"></div>
+        <div class="mgr-add-hdr">Add new client</div>
+        <div class="mgr-add-form">
+          <input class="mgr-inp" id="mgr-name" placeholder="Client name e.g. Koala Living" maxlength="48"
+            onkeydown="if(event.key==='Enter')window._saveClient()">
+          <div class="mgr-ppick">
+            <input class="mgr-inp" id="mgr-gsc-in" type="text" placeholder="Search GSC property…" autocomplete="off"
+              oninput="window._filterMgrGsc(this.value)" onfocus="window._openMgrGsc()" onblur="window._closeMgrGsc(200)">
+            <div class="mgr-pdrop" id="mgr-gsc-opts" style="display:none"></div>
+            <input type="hidden" id="mgr-gsc-val">
+          </div>
+          <div class="mgr-ppick">
+            <input class="mgr-inp" id="mgr-ga4-in" type="text" placeholder="Search GA4 property…" autocomplete="off"
+              oninput="window._filterMgrGa4(this.value)" onfocus="window._openMgrGa4()" onblur="window._closeMgrGa4(200)">
+            <div class="mgr-pdrop" id="mgr-ga4-opts" style="display:none"></div>
+            <input type="hidden" id="mgr-ga4-val">
+          </div>
+          <div class="mgr-ppick">
+            <input class="mgr-inp" id="mgr-country-in" type="text" placeholder="Country (auto-detected from TLD, optional)" autocomplete="off"
+              oninput="window._filterMgrCountry(this.value)" onfocus="window._openMgrCountry()" onblur="window._closeMgrCountry(200)">
+            <div class="mgr-pdrop" id="mgr-country-opts" style="display:none"></div>
+            <input type="hidden" id="mgr-country-val">
+          </div>
+          <button class="mgr-save-btn" onclick="window._saveClient()">+ Save client</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- URL LIST SEGMENT MODAL -->
+  <div class="mgr-overlay" id="url-list-modal" onclick="if(event.target===this)window._closeUrlListModal()">
+    <div class="mgr-card url-list-card">
+      <div class="mgr-hdr">
+        <div>
+          <div class="mgr-title">URL List Segment</div>
+          <div class="mgr-sub">Paste URLs (one per line) — metrics are combined across all of them</div>
+        </div>
+        <button class="mgr-close" onclick="window._closeUrlListModal()">✕</button>
+      </div>
+      <div class="mgr-body">
+        <div class="url-list-form">
+          <input class="mgr-inp" id="ul-name-inp" placeholder="Segment name e.g. Mattress Collection" maxlength="40"
+            onkeydown="if(event.key==='Enter')document.getElementById('ul-urls-inp').focus()">
+          <textarea class="ul-textarea" id="ul-urls-inp"
+            placeholder="Paste URLs here, one per line:&#10;https://au.koala.com/collections/mattresses&#10;https://au.koala.com/collections/queen-mattresses&#10;…"
+            oninput="window._ulCountUrls()"></textarea>
+          <div class="ul-footer">
+            <span class="ul-count" id="ul-count">0 URLs</span>
+            <div class="ul-actions">
+              <button class="seg-cancel-btn" onclick="window._closeUrlListModal()">Cancel</button>
+              <button class="seg-save-btn" onclick="window._saveUrlListSeg()">Save segment</button>
+            </div>
+          </div>
+        </div>
+        <div id="ul-saved-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP SHELL: sidebar + main area -->
+  <div class="app-shell">
+
+    <!-- SIDEBAR NAV -->
+    <nav class="sidebar">
+      <div class="snav">
+        <div class="snav-section-lbl">Data</div>
+        <button class="snav-item active" data-page="overview" onclick="window._navTo('overview')">
+          <span class="snav-icon">📊</span><span class="snav-label">Overview</span>
+        </button>
+        <button class="snav-item" data-page="keywords" onclick="window._navToKeywords()">
+          <span class="snav-icon">🔑</span><span class="snav-label">Keywords</span>
+        </button>
+        <button class="snav-item" data-page="pages" onclick="window._navTo('pages')">
+          <span class="snav-icon">📄</span><span class="snav-label">Pages</span>
+        </button>
+        <div class="snav-div"></div>
+        <div class="snav-section-lbl">Intelligence</div>
+        <button class="snav-item" data-page="rank" onclick="window._navTo('rank')">
+          <span class="snav-icon">🎯</span><span class="snav-label">Rank Intelligence</span>
+        </button>
+        <button class="snav-item" data-page="cannibal" onclick="window._navTo('cannibal')">
+          <span class="snav-icon">⚡</span><span class="snav-label">Cannibalization</span>
+        </button>
+        <button class="snav-item" data-page="insights" onclick="window._navTo('insights')">
+          <span class="snav-icon">💡</span><span class="snav-label">Insights</span>
+        </button>
+        <div class="snav-div"></div>
+        <div class="snav-section-lbl">Tools</div>
+        <button class="snav-item" data-page="explorer" onclick="window._openExplorer()">
+          <span class="snav-icon">📈</span><span class="snav-label">Metric Explorer</span>
+        </button>
+      </div>
+      <div class="sidebar-footer">
+        <div class="ctx-badge" id="ctx-badge">
+          <span id="ctx-seg">Sitewide</span>
+          <span class="ctx-dot">·</span>
+          <span id="ctx-date">30d</span>
+          <span id="ctx-country"></span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- MAIN AREA -->
+    <div class="main-area">
+
+      <!-- FILTER BAR -->
+      <div class="fbar">
+        <span class="flbl">URL</span>
+        <div class="url-wrap">
+          <input class="url-inp" id="url-filter" type="text"
+            placeholder="/collections/sofa-beds  —  blank = sitewide"
+            oninput="window._urlInput()" onfocus="window._urlFocus()" onblur="window._urlBlur()"
+            onkeydown="if(event.key==='Enter') window._loadAll(); if(event.key==='Escape'){ document.getElementById('url-drop').style.display='none'; }"/>
+          <div class="url-drop" id="url-drop" style="display:none">
+            <div id="url-drop-opts"></div>
+            <div class="url-drop-footer" id="url-drop-footer" style="display:none">
+              <span id="url-drop-sel-count"></span>
+              <button class="url-drop-clear-btn" onclick="window._clearUrlSel()">✕ Clear selection</button>
+            </div>
+          </div>
+        </div>
+        <button class="btn-go" onclick="window._loadAll()">Analyze →</button>
+        <button class="btn-clr" id="btn-clr" onclick="window._clearDrill()" style="display:none">✕ Clear</button>
+        <span class="tsep">|</span>
+        <div class="dpills">
+          <button class="pill" data-d="7"   onclick="window._setDays(7)">7d</button>
+          <button class="pill" data-d="28"  onclick="window._setDays(28)">28d</button>
+          <button class="pill active" data-d="30" onclick="window._setDays(30)">30d</button>
+          <button class="pill" data-d="90"  onclick="window._setDays(90)">3m</button>
+          <button class="pill" data-d="180" onclick="window._setDays(180)">6m</button>
+          <button class="pill" data-d="365" onclick="window._setDays(365)">12m</button>
+          <span class="pill-sep">|</span>
+          <button class="pill" data-preset="lastMonth"   onclick="window._setPreset('lastMonth')">Last mo</button>
+          <button class="pill" data-preset="lastQuarter" onclick="window._setPreset('lastQuarter')">Last qtr</button>
+        </div>
+        <input class="custom-days-inp" id="custom-days" type="number" min="1" max="900" placeholder="Custom days…"
+          onkeydown="if(event.key==='Enter') window._setCustomDays(this.value)"
+          onblur="if(this.value) window._setCustomDays(this.value)"/>
+        <span class="tsep">|</span>
+        <button class="btn-settings" id="btn-settings" onclick="window._toggleSettings()" title="Brand filter settings">⚙ Brand</button>
+        <span class="brand-active-tag" id="brand-active-tag">🏷 Brand hidden</span>
+      </div>
+
+      <!-- SETTINGS BAR (collapsible) -->
+      <div class="settings-bar" id="settings-bar">
+        <span class="flbl">Brand filter</span>
+        <div class="tog-wrap" onclick="window._toggleBranded()">
+          <div class="tog" id="brand-tog"><div class="tog-k"></div></div>
+          <span class="tog-txt">Hide branded keywords</span>
+        </div>
+        <input class="brand-inp" id="brand-terms" type="text"
+          placeholder="Comma-separated brand terms e.g. koala, koala.com"
+          oninput="window._recalc()"/>
+        <span class="settings-hint">Branded keywords will be excluded from filtered metric cards and keyword table</span>
+      </div>
+
+      <!-- SEGMENTS BAR -->
+      <div class="seg-bar">
+        <span class="seg-lbl">Segment</span>
+        <div class="seg-pills" id="seg-pills"></div>
+        <button class="seg-add-btn" id="seg-add-btn" onclick="window._openSegForm()">+ Pattern</button>
+        <button class="seg-paste-btn" onclick="window._openUrlListModal()">📋 URL List</button>
+        <div class="seg-form" id="seg-form" style="display:none">
+          <input class="seg-inp" id="seg-name-inp" placeholder="Name e.g. Top Products" maxlength="28">
+          <input class="seg-inp seg-inp-wide" id="seg-pat-inp" placeholder="URL pattern e.g. /collections/sofas">
+          <button class="seg-save-btn" onclick="window._saveSeg()">Save</button>
+          <button class="seg-cancel-btn" onclick="window._closeSegForm()">✕</button>
+        </div>
+      </div>
+
+      <!-- GLOBAL ALERTS (shown on any page) -->
+      <div id="err-banner" class="alert page-alert" style="display:none"></div>
+      <div id="session-banner" class="session-banner page-alert" style="display:none">
+        <span>⏱ Session expired — your Google token has expired.</span>
+        <button onclick="window._signIn()" class="session-reconnect">Reconnect →</button>
+      </div>
+
+      <!-- ─────────────────────────────────────
+           PAGE: OVERVIEW
+      ───────────────────────────────────── -->
+      <div class="page-view" id="page-overview">
+
+        <!-- drill bar -->
+        <div id="drill-bar" style="display:none" class="drill-bar">
+          <span class="drill-tag">Drilling into</span>
+          <span id="drill-lbl" class="drill-lbl"></span>
+          <button class="drill-cls" onclick="window._clearDrill()">✕ Back to sitewide</button>
+        </div>
+
+        <!-- top row -->
+        <div class="top-row">
+          <span id="section-title" class="section-lbl">Overview — sitewide</span>
+          <span id="date-lbl" class="date-lbl"></span>
+          <div class="cmp-group">
+            <button class="cmp-btn"        data-cmp="pop"  onclick="window._setCmp('pop')">PoP</button>
+            <button class="cmp-btn"        data-cmp="yoy"  onclick="window._setCmp('yoy')">YoY</button>
+            <button class="cmp-btn active" data-cmp="both" onclick="window._setCmp('both')">Both</button>
+          </div>
+        </div>
+
+        <!-- METRIC CARDS -->
+        <div class="metrics-section" id="sec-metrics">
+          <div class="mg-label">Search Console</div>
+          <div class="metrics-row">
+            <div class="mcard mc-clicks">
+              <div class="mtop"><div class="mglow"></div><div class="mlbl">Total Clicks</div><div class="mval" id="m-clicks">—</div><div class="mdeltas" id="m-cd"></div></div>
+              <div class="mbot filter-mbot"><div class="fbadge-row"><span class="ftag">Filtered</span><span class="fbadge" id="fl-cl">no filter</span></div><div class="fval" id="fv-cl">—</div><div id="fv-cl-diff"></div></div>
+            </div>
+            <div class="mcard mc-impr">
+              <div class="mtop"><div class="mglow"></div><div class="mlbl">Impressions</div><div class="mval" id="m-impr">—</div><div class="mdeltas" id="m-id"></div></div>
+              <div class="mbot filter-mbot"><div class="fbadge-row"><span class="ftag">Filtered</span><span class="fbadge" id="fl-im">no filter</span></div><div class="fval" id="fv-im">—</div><div id="fv-im-diff"></div></div>
+            </div>
+            <div class="mcard mc-pos">
+              <div class="mtop"><div class="mglow"></div><div class="mlbl">Avg. Position</div><div class="mval" id="m-pos">—</div><div class="mdeltas" id="m-pd"></div></div>
+              <div class="mbot filter-mbot"><div class="fbadge-row"><span class="ftag">Filtered</span><span class="fbadge" id="fl-pos">no filter</span></div><div class="fval" id="fv-pos">—</div><div id="fv-pos-diff"></div></div>
+            </div>
+            <div class="mcard mc-ctr">
+              <div class="mtop"><div class="mglow"></div><div class="mlbl">CTR</div><div class="mval" id="m-ctr">—</div><div class="mdeltas" id="m-td"></div></div>
+              <div class="mbot filter-mbot"><div class="fbadge-row"><span class="ftag">Filtered</span><span class="fbadge" id="fl-ctr">no filter</span></div><div class="fval" id="fv-ctr">—</div><div id="fv-ctr-diff"></div></div>
+            </div>
+          </div>
+
+          <div class="ga4-section-hdr" style="margin-top:14px">
+            <span class="mg-label">GA4</span>
+            <span class="ga4-src-tag organic-tag-lbl">🌿 Organic search &amp; shopping</span>
+            <span class="ga4-src-tag all-tag-lbl">🌐 All channels</span>
+          </div>
+          <div class="metrics-row-ga4">
+            <div class="mcard mc-sess">
+              <div class="mtop"><div class="mglow"></div><div class="mlbl">Organic Sessions</div><div class="mval" id="m-sess">—</div><div class="mdeltas" id="m-sd"></div></div>
+              <div class="mbot filter-mbot"><div class="fbadge-row"><span class="ftag">Filtered</span><span class="fbadge" id="fl-sess">no filter</span></div><div class="fval" id="fv-sess">—</div><div id="fv-sess-diff"></div></div>
+            </div>
+            <div class="mcard mc-rev">
+              <div class="mtop"><div class="mglow"></div><div class="mlbl">Organic Revenue</div><div class="mval" id="m-rev">—</div><div class="mdeltas" id="m-rd"></div></div>
+              <div class="mbot filter-mbot"><div class="fbadge-row"><span class="ftag">Filtered</span><span class="fbadge" id="fl-rev">no filter</span></div><div class="fval" id="fv-rev">—</div><div id="fv-rev-diff"></div></div>
+            </div>
+            <div class="mcard mc-tot-sess">
+              <div class="mtop"><div class="mglow"></div><div class="mlbl">All Sessions</div><div class="mval" id="m-tot-sess">—</div><div class="mdeltas" id="m-tsd"></div></div>
+              <div class="mbot"><div class="ftag">All channels</div><div class="fnote">Every session, all traffic sources</div></div>
+            </div>
+            <div class="mcard mc-tot-rev">
+              <div class="mtop"><div class="mglow"></div><div class="mlbl">All Revenue</div><div class="mval" id="m-tot-rev">—</div><div class="mdeltas" id="m-trd"></div></div>
+              <div class="mbot"><div class="ftag">All channels</div><div class="fnote">Total purchase revenue, all sources</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CHARTS -->
+        <div class="chart-row" id="sec-charts">
+          <div class="chart-panel">
+            <div class="chart-hdr"><span class="chart-ttl">Clicks over time</span><div class="legend" id="cl-legend"></div></div>
+            <canvas id="clicks-chart" height="220"></canvas>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-hdr"><span class="chart-ttl">Avg. position over time</span><div class="legend" id="pos-legend"></div></div>
+            <canvas id="pos-chart" height="220"></canvas>
+          </div>
+        </div>
+
+        <!-- KEYWORD INSIGHT WIDGETS -->
+        <div class="widgets-row">
+          <div class="widget" id="w-win">
+            <div class="whandle"><span class="wtitle">🏆 Top 5 Rising Keywords</span></div>
+            <div class="wbody" id="winners-body"><div class="loading"><span class="dot">Loading</span></div></div>
+          </div>
+          <div class="widget" id="w-lose">
+            <div class="whandle"><span class="wtitle">📉 Top 5 Falling Keywords</span></div>
+            <div class="wbody" id="losers-body"><div class="loading"><span class="dot">Loading</span></div></div>
+          </div>
+        </div>
+
+        <!-- METRIC EXPLORER (collapsible) -->
+        <div class="me-panel me-collapsed" id="sec-explorer">
+          <div class="me-hdr">
+            <div class="me-hdr-top">
+              <span class="me-ttl">📈 Metric Explorer</span>
+              <div class="me-hdr-ctrl">
+                <div class="me-group">
+                  <button class="me-src active" data-src="gsc" onclick="window._meSrc('gsc')">GSC</button>
+                  <button class="me-src"        data-src="ga4" onclick="window._meSrc('ga4')">GA4</button>
+                </div>
+                <div class="me-sep"></div>
+                <div class="me-group">
+                  <button class="me-range"        data-days="30"  onclick="window._meRange(30)">1m</button>
+                  <button class="me-range"        data-days="90"  onclick="window._meRange(90)">3m</button>
+                  <button class="me-range"        data-days="180" onclick="window._meRange(180)">6m</button>
+                  <button class="me-range"        data-days="365" onclick="window._meRange(365)">12m</button>
+                  <button class="me-range active" data-days="500" onclick="window._meRange(500)">16m</button>
+                </div>
+                <span class="me-seg-badge" id="me-seg-badge">Sitewide</span>
+              </div>
+              <button class="me-toggle-btn" id="me-toggle" onclick="window._toggleExplorer()">▶ Load</button>
+            </div>
+            <div class="me-controls">
+              <div class="me-group" id="me-metric-tabs">
+                <button class="me-tab active" data-met="clicks"      onclick="window._mePick('clicks')">Clicks</button>
+                <button class="me-tab"        data-met="impressions" onclick="window._mePick('impressions')">Impressions</button>
+                <button class="me-tab"        data-met="position"    onclick="window._mePick('position')">Avg. Position</button>
+                <button class="me-tab"        data-met="ctr"         onclick="window._mePick('ctr')">CTR</button>
+              </div>
+              <div class="me-sep"></div>
+              <div class="me-group">
+                <button class="me-type"        data-type="line" onclick="window._meType('line')">Line</button>
+                <button class="me-type active" data-type="bar"  onclick="window._meType('bar')">Bar</button>
+              </div>
+              <div class="me-sep"></div>
+              <div class="me-group">
+                <button class="me-agg"        data-agg="daily"   onclick="window._meAgg('daily')">Daily</button>
+                <button class="me-agg"        data-agg="weekly"  onclick="window._meAgg('weekly')">Weekly</button>
+                <button class="me-agg active" data-agg="monthly" onclick="window._meAgg('monthly')">Monthly</button>
+              </div>
+            </div>
+            <div id="me-year-legend" class="me-year-legend" style="display:none"></div>
+          </div>
+          <div class="me-body">
+            <canvas id="me-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- KEYWORD TABLE -->
+        <div class="kw-panel" id="sec-keywords">
+          <div class="kw-ph">
+            <span class="kw-ttl">All Keywords</span>
+            <div class="kwtabs">
+              <button class="kwtab active" data-kw="all" onclick="window._setKwTab('all')">All</button>
+              <button class="kwtab"        data-kw="up"  onclick="window._setKwTab('up')">↑ Rising</button>
+              <button class="kwtab"        data-kw="dn"  onclick="window._setKwTab('dn')">↓ Falling</button>
+            </div>
+            <input class="pf" id="kw-search" type="text" placeholder="Filter keywords…" oninput="window._renderKws()" onkeydown="if(event.key==='Escape'){this.value='';window._renderKws();}"/>
+            <button class="btn-copy-sel" id="btn-copy-sel" onclick="window._copySelected()">⎘ Copy selected</button>
+            <button class="btn-csv" onclick="window._exportCsv()">↓ CSV</button>
+            <button class="btn-cols" id="btn-cols" onclick="window._toggleColDrop(event)" title="Show/hide columns">⊞ Cols</button>
+            <span class="organic-tag">GA4 = organic only</span>
+          </div>
+          <!-- column visibility dropdown -->
+          <div class="col-menu" id="col-menu">
+            <div class="col-menu-hdr">Show columns</div>
+            <label class="col-chk"><input type="checkbox" data-col="clicks"     onchange="window._toggleCol('clicks',this.checked)"> Clicks</label>
+            <label class="col-chk"><input type="checkbox" data-col="clicks-pop" onchange="window._toggleCol('clicks-pop',this.checked)"> Clicks PoP</label>
+            <label class="col-chk"><input type="checkbox" data-col="clicks-yoy" onchange="window._toggleCol('clicks-yoy',this.checked)"> Clicks YoY</label>
+            <label class="col-chk"><input type="checkbox" data-col="impr"       onchange="window._toggleCol('impr',this.checked)"> Impressions</label>
+            <label class="col-chk"><input type="checkbox" data-col="impr-pop"   onchange="window._toggleCol('impr-pop',this.checked)"> Impr. PoP</label>
+            <label class="col-chk"><input type="checkbox" data-col="impr-yoy"   onchange="window._toggleCol('impr-yoy',this.checked)"> Impr. YoY</label>
+            <label class="col-chk"><input type="checkbox" data-col="pos"        onchange="window._toggleCol('pos',this.checked)"> Avg. Position</label>
+            <label class="col-chk"><input type="checkbox" data-col="pos-pop"    onchange="window._toggleCol('pos-pop',this.checked)"> Pos. PoP</label>
+            <label class="col-chk"><input type="checkbox" data-col="pos-yoy"    onchange="window._toggleCol('pos-yoy',this.checked)"> Pos. YoY</label>
+            <label class="col-chk"><input type="checkbox" data-col="ctr"        onchange="window._toggleCol('ctr',this.checked)"> CTR</label>
+          </div>
+          <div class="kw-scroll" id="kw-scroll">
+            <table class="dt">
+              <thead class="sticky-head"><tr>
+                <th class="cb-col"><input type="checkbox" id="kw-select-all" title="Select all" onchange="window._kwSelectAll(this.checked)"></th>
+                <th data-col="query"        onclick="window._sortQ('query')">#  Keyword</th>
+                <th class="col-clicks"     data-col="clicks"       onclick="window._sortQ('clicks')">Clicks</th>
+                <th class="col-clicks-pop" data-col="delta"        onclick="window._sortQ('delta')">Clicks PoP</th>
+                <th class="col-clicks-yoy" data-col="deltaYoy"     onclick="window._sortQ('deltaYoy')">Clicks YoY</th>
+                <th class="col-impr"       data-col="impressions"  onclick="window._sortQ('impressions')">Impr.</th>
+                <th class="col-impr-pop"   data-col="deltaImprPop" onclick="window._sortQ('deltaImprPop')">Impr. PoP</th>
+                <th class="col-impr-yoy"   data-col="deltaImprYoy" onclick="window._sortQ('deltaImprYoy')">Impr. YoY</th>
+                <th class="col-pos"        data-col="position"     onclick="window._sortQ('position')">Avg. Pos.</th>
+                <th class="col-pos-pop"    data-col="deltaPosPop"  onclick="window._sortQ('deltaPosPop')">Pos. PoP</th>
+                <th class="col-pos-yoy"    data-col="deltaPosYoy"  onclick="window._sortQ('deltaPosYoy')">Pos. YoY</th>
+                <th class="col-ctr"        data-col="ctr"          onclick="window._sortQ('ctr')">CTR</th>
+              </tr></thead>
+              <tbody id="kw-body"></tbody>
+            </table>
+          </div>
+          <div id="kw-pager"></div>
+        </div>
+
+      </div><!-- /page-overview -->
+
+      <!-- ─────────────────────────────────────
+           PAGE: PAGES
+      ───────────────────────────────────── -->
+      <div class="page-view" id="page-pages" style="display:none">
+
+        <div class="pv-hdr">
+          <div>
+            <div class="pv-ttl">📄 Pages</div>
+            <div class="pv-sub">Page-level GSC performance + GA4 organic sessions &amp; revenue
+              <span id="pages-brand-note" class="pv-note" style="display:none">· Brand filter active · GA4 sessions &amp; revenue shown as <strong>~estimated non-brand</strong> (non-brand-clicks ratio × all-organic GA4)</span>
+            </div>
+          </div>
+          <button class="btn-csv" onclick="window._exportPagesCsv()">↓ CSV</button>
+        </div>
+
+        <div class="kw-panel pages-panel">
+          <div class="kw-scroll">
+            <table class="dt">
+              <thead class="sticky-head"><tr>
+                <th data-col="url"          onclick="window._sortPages('url')">URL</th>
+                <th class="col-clicks"     data-col="clicks"       onclick="window._sortPages('clicks')">Clicks</th>
+                <th class="col-clicks-pop" data-col="delta"        onclick="window._sortPages('delta')">Clicks PoP</th>
+                <th class="col-clicks-yoy" data-col="deltaYoy"     onclick="window._sortPages('deltaYoy')">Clicks YoY</th>
+                <th class="col-pos"        data-col="position"     onclick="window._sortPages('position')">Avg. Pos.</th>
+                <th class="col-pos-pop"    data-col="deltaPosPop"  onclick="window._sortPages('deltaPosPop')">Pos. PoP</th>
+                <th class="col-pos-yoy"    data-col="deltaPosYoy"  onclick="window._sortPages('deltaPosYoy')">Pos. YoY</th>
+                <th data-col="sessions"     onclick="window._sortPages('sessions')">Org. Sessions</th>
+                <th data-col="deltaSessPop" onclick="window._sortPages('deltaSessPop')">Sess. PoP</th>
+                <th data-col="deltaSessYoy" onclick="window._sortPages('deltaSessYoy')">Sess. YoY</th>
+                <th data-col="revenue"      onclick="window._sortPages('revenue')">Org. Revenue</th>
+                <th data-col="deltaRevPop"  onclick="window._sortPages('deltaRevPop')">Rev. PoP</th>
+                <th data-col="deltaRevYoy"  onclick="window._sortPages('deltaRevYoy')">Rev. YoY</th>
+              </tr></thead>
+              <tbody id="pages-body"></tbody>
+            </table>
+          </div>
+          <div id="pages-pager"></div>
+        </div>
+
+      </div><!-- /page-pages -->
+
+      <!-- ─────────────────────────────────────
+           PAGE: RANK INTELLIGENCE
+      ───────────────────────────────────── -->
+      <div class="page-view" id="page-rank" style="display:none">
+
+        <div class="pv-hdr">
+          <div>
+            <div class="pv-ttl">🎯 Rank Intelligence</div>
+            <div class="pv-sub">Rank distribution, CTR benchmarks, and click-gap opportunities</div>
+          </div>
+        </div>
+        <div id="rank-content">
+          <div class="empty-state">
+            <div class="empty-icon">🎯</div>
+            <div class="empty-title">No data yet</div>
+            <div class="empty-sub">Load data from Overview first, then come back here.</div>
+          </div>
+        </div>
+
+      </div><!-- /page-rank -->
+
+      <!-- ─────────────────────────────────────
+           PAGE: CANNIBALIZATION
+      ───────────────────────────────────── -->
+      <div class="page-view" id="page-cannibal" style="display:none">
+
+        <div class="pv-hdr">
+          <div>
+            <div class="pv-ttl">⚡ Cannibalization</div>
+            <div class="pv-sub">Keywords competing across multiple URLs — competing pages dilute each other's rankings</div>
+          </div>
+        </div>
+        <div id="cannibal-content">
+          <div class="empty-state">
+            <div class="empty-icon">⚡</div>
+            <div class="empty-title">Not loaded yet</div>
+            <div class="empty-sub">Navigate here after signing in to analyse keyword cannibalization.</div>
+          </div>
+        </div>
+
+      </div><!-- /page-cannibal -->
+
+      <!-- ─────────────────────────────────────
+           PAGE: INSIGHTS
+      ───────────────────────────────────── -->
+      <div class="page-view" id="page-insights" style="display:none">
+
+        <div class="pv-hdr">
+          <div>
+            <div class="pv-ttl">💡 Insights</div>
+            <div class="pv-sub">Auto-generated observations, n-gram analysis, and quick wins from your keyword data</div>
+          </div>
+        </div>
+        <div id="insights-content">
+          <div class="empty-state">
+            <div class="empty-icon">💡</div>
+            <div class="empty-title">No data yet</div>
+            <div class="empty-sub">Load data from Overview first, then come back here.</div>
+          </div>
+        </div>
+
+      </div><!-- /page-insights -->
+
+
+    </div><!-- /main-area -->
+  </div><!-- /app-shell -->
+
+</div><!-- /app -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script type="module" src="app.js?v=20260428a"></script>
+</body>
+</html>
