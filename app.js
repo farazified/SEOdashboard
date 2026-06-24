@@ -340,6 +340,11 @@ function _applyClient(client) {
     if (ci) ci.value = client.countryLabel || client.country;
   }
   localStorage.setItem('seo_last_client', client.id);
+  // Load this client's private custom segments (built-in pills stay global) and
+  // drop any cached segment-breakdown so it refetches for the new client.
+  _loadClientSegments();
+  S.segmentsData = null;
+  renderSegments();
 }
 
 window._toggleClientDrop = () => {
@@ -526,11 +531,16 @@ window._saveClient = () => {
 
 window._delClient = id => {
   S.clients = S.clients.filter(c => c.id !== id);
+  // Drop this client's private segment bucket so it doesn't orphan in storage.
+  localStorage.removeItem('seo_segments::' + id);
   if (S.selClient === id) {
     S.selClient = '';
     const lbl = document.getElementById('client-lbl');
     if (lbl) lbl.textContent = 'Select client…';
     document.getElementById('client-btn')?.classList.remove('has-client');
+    // Fall back to the global (no-client) custom segments.
+    _loadClientSegments();
+    renderSegments();
   }
   localStorage.setItem('seo_clients', JSON.stringify(S.clients));
   renderClientMgr();
@@ -557,6 +567,20 @@ window._renderKws   = ()  => renderKeywords();
 window._recalc      = ()  => { recalcFiltered(); renderAll(); };
 
 // ── SEGMENTS ──
+
+// Custom segments are saved PER CLIENT (built-in pills stay global). Each client
+// gets its own localStorage bucket; with no client selected we fall back to the
+// legacy global key so pre-existing custom segments remain accessible.
+function _segKey() {
+  return S.selClient ? 'seo_segments::' + S.selClient : 'seo_segments';
+}
+function _saveSegments() {
+  localStorage.setItem(_segKey(), JSON.stringify(S.segments));
+}
+function _loadClientSegments() {
+  try { S.segments = JSON.parse(localStorage.getItem(_segKey()) || '[]'); }
+  catch { S.segments = []; }
+}
 
 window._selSeg = pat => {
   document.getElementById('url-filter').value = pat;
@@ -585,7 +609,7 @@ window._saveSeg = () => {
   if (!name || !pat) return;
   const seg = { id: 'c_' + Date.now(), name, pattern: pat, color:'var(--acc-l)', isCustom: true };
   S.segments.push(seg);
-  localStorage.setItem('seo_segments', JSON.stringify(S.segments));
+  _saveSegments();
   window._closeSegForm();
   renderSegments();
 };
@@ -593,7 +617,7 @@ window._saveSeg = () => {
 window._delSeg = (id, e) => {
   e.stopPropagation();
   S.segments = S.segments.filter(s => s.id !== id);
-  localStorage.setItem('seo_segments', JSON.stringify(S.segments));
+  _saveSegments();
   renderSegments();
 };
 
@@ -660,7 +684,7 @@ window._saveUrlListSeg = () => {
   }
   const seg = { id: 'ul_' + Date.now(), name, urlList: urls, color: '#3ecf8e', isCustom: true };
   S.segments.push(seg);
-  localStorage.setItem('seo_segments', JSON.stringify(S.segments));
+  _saveSegments();
   nameInp.value = '';
   document.getElementById('ul-urls-inp').value = '';
   document.getElementById('ul-count').textContent = '0 URLs';
@@ -673,7 +697,7 @@ window._saveUrlListSeg = () => {
 
 window._delUrlListSeg = id => {
   S.segments = S.segments.filter(s => s.id !== id);
-  localStorage.setItem('seo_segments', JSON.stringify(S.segments));
+  _saveSegments();
   // if this was the active segment, reset to sitewide
   if (S.urlSelections.length) {
     S.urlSelections = [];
@@ -876,8 +900,8 @@ async function showApp() {
   document.getElementById('app').style.display = 'block';
   // restore URL state first (before loading props so filters are ready)
   const urlParams = restoreUrlState();
-  // load saved custom segments
-  try { S.segments = JSON.parse(localStorage.getItem('seo_segments')||'[]'); } catch{}
+  // load saved custom segments (global bucket until a client is applied below)
+  _loadClientSegments();
   renderSegments();
   renderCountryOpts('');
   // sync comparison toggle to match restored state
