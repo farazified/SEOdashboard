@@ -798,7 +798,8 @@ export function updateCtxBadge() {
 
   segEl.textContent = seg || 'Sitewide';
 
-  if (S.datePreset === 'lastMonth')        dateEl.textContent = 'Last mo';
+  if (S.datePreset === 'ytd')              dateEl.textContent = 'YTD';
+  else if (S.datePreset === 'lastMonth')        dateEl.textContent = 'Last mo';
   else if (S.datePreset === 'lastQuarter') dateEl.textContent = 'Last qtr';
   else if (S.days === 7)                   dateEl.textContent = '7d';
   else if (S.days === 28)                  dateEl.textContent = '28d';

@@ -7,7 +7,7 @@ export function buildCharts(curR, popR, yoyR) {
   const toMap = rows => { const m={}; rows.forEach(r=>m[r.keys[0]]=r); return m; };
   const dates  = curR.map(r=>r.keys[0]).sort();
   const pMap   = toMap(popR), yMap=toMap(yoyR);
-  const labels = dates.map(d => new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}));
+  const labels = dates.map(d => new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}));
 
   function shiftD(d,n) { const dt=new Date(d+'T00:00:00'); dt.setDate(dt.getDate()-n); return dt.toISOString().split('T')[0]; }
   function shiftY(d)   { const dt=new Date(d+'T00:00:00'); dt.setFullYear(dt.getFullYear()-1); return dt.toISOString().split('T')[0]; }

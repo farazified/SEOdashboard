@@ -68,6 +68,7 @@ const fmtD_ = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short
 export function getDates() {
   if (S.datePreset === 'lastMonth')   return _lastMonthDates();
   if (S.datePreset === 'lastQuarter') return _lastQuarterDates();
+  if (S.datePreset === 'ytd')         return _yearToDateDates();
   return _rollingDates();
 }
 
@@ -123,6 +124,27 @@ function _lastQuarterDates() {
   const yoyStart = new Date(lqYr - 1, lq * 3,     1);
   const yoyEnd   = new Date(lqYr - 1, lq * 3 + 3, 0);
   const label    = `Q${lq + 1} ${lqYr} · ${fmtD_(start)} – ${fmtD_(end)}`;
+  return {
+    start: ds(start), end: ds(end),
+    popStart: ds(popStart), popEnd: ds(popEnd),
+    yoyStart: ds(yoyStart), yoyEnd: ds(yoyEnd),
+    label,
+  };
+}
+
+function _yearToDateDates() {
+  const t   = new Date();
+  const yr  = t.getFullYear();
+  // YTD: Jan 1 – today
+  const start    = new Date(yr, 0, 1);
+  const end      = new Date(t);
+  // PoP: same period last year
+  const popStart = new Date(yr - 1, 0, 1);
+  const popEnd   = new Date(yr - 1, t.getMonth(), t.getDate());
+  // YoY: same period two years ago
+  const yoyStart = new Date(yr - 2, 0, 1);
+  const yoyEnd   = new Date(yr - 2, t.getMonth(), t.getDate());
+  const label    = `YTD ${yr} · ${fmtD_(start)} – ${fmtD_(end)}`;
   return {
     start: ds(start), end: ds(end),
     popStart: ds(popStart), popEnd: ds(popEnd),
