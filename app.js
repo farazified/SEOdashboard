@@ -578,7 +578,18 @@ function _saveSegments() {
   localStorage.setItem(_segKey(), JSON.stringify(S.segments));
 }
 function _loadClientSegments() {
-  try { S.segments = JSON.parse(localStorage.getItem(_segKey()) || '[]'); }
+  const key = _segKey();
+  // One-time migration: a client that has no saved segments yet adopts any
+  // pre-existing global custom segments (created before per-client scoping),
+  // then the global bucket is cleared so it migrates only once.
+  if (S.selClient && localStorage.getItem(key) === null) {
+    const legacy = localStorage.getItem('seo_segments');
+    if (legacy && legacy !== '[]') {
+      localStorage.setItem(key, legacy);
+      localStorage.removeItem('seo_segments');
+    }
+  }
+  try { S.segments = JSON.parse(localStorage.getItem(key) || '[]'); }
   catch { S.segments = []; }
 }
 

@@ -510,13 +510,14 @@ export async function loadGa4(propId) {
   const exprs  = [orgF, ...(pageF ? [pageF] : []), ...(ctyF ? [ctyF] : [])];
   const dimF   = exprs.length === 1 ? exprs[0] : { andGroup: { expressions: exprs } };
 
-  // Organic filter body (landingPage dim so we can aggregate across pages)
+  // Organic totals. NO dimension → GA4 returns a single exact-total row. (Using a
+  // landingPage dimension with limit:250 truncated big sites to the top 250 pages,
+  // undercounting sessions & revenue vs GA4's true total.) The dimensionFilter
+  // (organic channel + URL + country) still applies without the dimension.
   const mkB = (s, e) => ({
     dateRanges: [{ startDate: s, endDate: e }],
-    dimensions: [{ name: 'landingPage' }],
     metrics: [{ name: 'sessions' }, { name: 'purchaseRevenue' }],
     dimensionFilter: dimF,
-    limit: 250,
   });
 
   // All-channel body — keep URL/country filter but drop organic restriction
@@ -524,10 +525,8 @@ export async function loadGa4(propId) {
   const totDimF  = totExprs.length === 0 ? null : totExprs.length === 1 ? totExprs[0] : { andGroup: { expressions: totExprs } };
   const mkBTot = (s, e) => ({
     dateRanges: [{ startDate: s, endDate: e }],
-    dimensions: [{ name: 'landingPage' }],
     metrics: [{ name: 'sessions' }, { name: 'purchaseRevenue' }],
     ...(totDimF ? { dimensionFilter: totDimF } : {}),
-    limit: 250,
   });
 
   const run = body => req(`${GA4_BASE}/properties/${propId}:runReport`, { method:'POST', body: JSON.stringify(body) });
@@ -619,11 +618,11 @@ export async function loadSegments() {
     const ctyF  = ga4Cty ? { filter:{ fieldName:'country', stringFilter:{ matchType:'EXACT', value:ga4Cty }}} : null;
     const exprs = [...(organic?[orgF]:[]), ...(pageF?[pageF]:[]), ...(ctyF?[ctyF]:[])];
     const dimF  = exprs.length === 0 ? null : exprs.length === 1 ? exprs[0] : { andGroup:{ expressions: exprs } };
+    // No dimension → exact total row (avoids the 250-landing-page truncation).
     const res   = await req(`${GA4_BASE}/properties/${S.selGa4}:runReport`, { method:'POST', body: JSON.stringify({
       dateRanges:[{ startDate:s, endDate:e }],
-      dimensions:[{ name:'landingPage' }],
       metrics:[{ name:'sessions' }, { name:'purchaseRevenue' }],
-      ...(dimF ? { dimensionFilter: dimF } : {}), limit: 250,
+      ...(dimF ? { dimensionFilter: dimF } : {}),
     })});
     return (res.rows||[]).reduce((a,r)=>({ s:a.s+(+(r.metricValues[0].value)||0), r:a.r+(+(r.metricValues[1].value)||0) }), { s:0, r:0 });
   };
