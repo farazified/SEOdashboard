@@ -12,6 +12,17 @@ export const GSC_BASE  = 'https://www.googleapis.com/webmasters/v3';
 export const GA4_BASE  = 'https://analyticsdata.googleapis.com/v1beta';
 export const GA4_ADMIN = 'https://analyticsadmin.googleapis.com/v1alpha';
 
+// Built-in page segments. Shared by the pill bar (render.js) and the
+// Segments breakdown table (api.js) — kept here so both can import without
+// a circular dependency. 'All Pages' has an empty pattern (= sitewide).
+export const BUILT_IN_SEGS = [
+  { id:'all',         name:'All Pages',   pattern:'',             color:'var(--tx2)' },
+  { id:'collections', name:'Collections', pattern:'/collections', color:'var(--acc)' },
+  { id:'products',    name:'Products',    pattern:'/products',    color:'var(--blu)' },
+  { id:'blog',        name:'Blog',        pattern:'/blog',        color:'var(--grn)' },
+  { id:'pages',       name:'Pages',       pattern:'/pages',       color:'var(--amb)' },
+];
+
 export const COUNTRIES = [
   {code:'',    label:'All countries'},
   {code:'usa', label:'United States'},

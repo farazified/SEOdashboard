@@ -310,6 +310,20 @@ canvas        { display: block; width: 100% !important; }
 .kwtabs    { display: flex; gap: 3px; }
 .kwtab     { background: transparent; border: 1px solid var(--b1); border-radius: 6px; color: var(--tx3); font-family: var(--sans); font-size: 10px; font-weight: 500; padding: 3px 9px; cursor: pointer; transition: all .12s; }
 .kwtab.active { background: rgba(124,109,250,.18); border-color: rgba(124,109,250,.35); color: var(--acc-l); }
+
+/* ── Segments breakdown table ── */
+.segtabs   { display: flex; gap: 3px; flex-shrink: 0; }
+.segtab    { background: transparent; border: 1px solid var(--b1); border-radius: 6px; color: var(--tx3); font-family: var(--sans); font-size: 11px; font-weight: 500; padding: 4px 11px; cursor: pointer; transition: all .12s; }
+.segtab:hover  { color: var(--tx); border-color: var(--b2); }
+.segtab.active { background: rgba(124,109,250,.18); border-color: rgba(124,109,250,.35); color: var(--acc-l); }
+.seg-table th       { font-size: 10px; }
+.seg-table td       { vertical-align: top; padding: 11px 12px; }
+.seg-row            { cursor: pointer; transition: background .12s; }
+.seg-row:hover td   { background: rgba(255,255,255,.03); }
+.seg-name-cell      { font-family: var(--sans); font-size: 13px; font-weight: 600; color: var(--tx); white-space: nowrap; }
+.seg-name-cell .seg-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; vertical-align: middle; }
+.seg-metric .seg-val { display: block; font-size: 15px; font-weight: 700; color: var(--tx); letter-spacing: -.2px; margin-bottom: 3px; }
+.seg-deltas         { display: flex; flex-direction: column; gap: 1px; font-weight: 400; }
 .pf        { background: var(--bg4); border: 1px solid var(--b1); border-radius: 7px; color: var(--tx2); font-family: var(--body); font-size: 11px; padding: 5px 10px; outline: none; width: 165px; transition: border-color .2s; }
 .pf:focus  { border-color: var(--acc); }
 .btn-csv   { background: transparent; border: 1px solid var(--b2); border-radius: 6px; color: var(--tx2); font-family: var(--sans); font-size: 11px; font-weight: 600; padding: 4px 10px; cursor: pointer; transition: all .15s; }

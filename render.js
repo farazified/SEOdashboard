@@ -2,7 +2,7 @@
 
 import { S, METRICS } from './state.js';
 import { fmt, fmtD, fmtMoney, loadAll } from './api.js';
-import { COUNTRIES } from './config.js';
+import { COUNTRIES, BUILT_IN_SEGS } from './config.js';
 
 // ── GA4 CARDS ──
 // Always renders raw all-organic values on the main cards. When "Hide branded"
@@ -212,14 +212,6 @@ export function renderAll() {
 
 // ── SEGMENTS ──
 
-const BUILT_IN_SEGS = [
-  { id:'all',         name:'All Pages',   pattern:'',             color:'var(--tx2)' },
-  { id:'collections', name:'Collections', pattern:'/collections', color:'var(--acc)' },
-  { id:'products',    name:'Products',    pattern:'/products',    color:'var(--blu)' },
-  { id:'blog',        name:'Blog',        pattern:'/blog',        color:'var(--grn)' },
-  { id:'pages',       name:'Pages',       pattern:'/pages',       color:'var(--amb)' },
-];
-
 export function renderSegments() {
   const container = document.getElementById('seg-pills');
   if (!container) return;
@@ -249,6 +241,57 @@ export function renderSegments() {
       onclick="${handler}">
       <span class="seg-dot"></span>${seg.name}${countChip}${del}
     </button>`;
+  }).join('');
+}
+
+// ── SEGMENTS BREAKDOWN TABLE ──
+
+// Change badges under a metric value, honoring the PoP/YoY/Both comparison toggle.
+// inv=true for metrics where down is good (position).
+function segDelta(pop, yoy, inv) {
+  const sp = S.cmpMode==='pop' || S.cmpMode==='both';
+  const sy = S.cmpMode==='yoy' || S.cmpMode==='both';
+  const html = (sp ? dRow('PoP', pop, inv) : '') + (sy ? dRow('YoY', yoy, inv) : '');
+  return `<div class="seg-deltas">${html || '<span class="fdiff">—</span>'}</div>`;
+}
+
+export function renderSegmentsTable() {
+  const tb = document.getElementById('seg-table-body');
+  if (!tb) return;
+
+  const data = S.segmentsData;
+  if (data === null) {
+    tb.innerHTML = Array(5).fill(
+      '<tr>' + '<td><div class="skel" style="height:12px;border-radius:3px"></div></td>'.repeat(5) + '</tr>'
+    ).join('');
+    return;
+  }
+
+  let rows = data.slice();
+  if (S.segmentsTab === 'growing')  rows = rows.filter(s => (s.clicksPop!=null&&s.clicksPop>5)  || (s.clicksYoy!=null&&s.clicksYoy>5));
+  if (S.segmentsTab === 'decaying') rows = rows.filter(s => (s.clicksPop!=null&&s.clicksPop<-5) || (s.clicksYoy!=null&&s.clicksYoy<-5));
+
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="7"><div class="empty-state">
+      <div class="empty-icon">📁</div>
+      <div class="empty-title">No segments ${S.segmentsTab!=='all'?'in this view':'to show'}</div>
+      <div class="empty-sub">${S.segmentsTab!=='all'?'Try the All tab.':'Add segments from the pill bar on Overview.'}</div>
+    </div></td></tr>`;
+    return;
+  }
+
+  tb.innerHTML = rows.map(s => {
+    const est  = s.estimated ? '~' : '';   // organic sessions/revenue are estimated under brand filter
+    const pos  = s.position!=null ? s.position.toFixed(1) : '—';
+    return `<tr class="seg-row" onclick="window._segDrill('${s.id}')" title="Drill into ${s.name}">
+      <td class="seg-name-cell"><span class="seg-dot" style="background:${s.color}"></span>${s.name}</td>
+      <td class="num-cell seg-metric"><span class="seg-val">${fmt(s.clicks)}</span>${segDelta(s.clicksPop, s.clicksYoy, false)}</td>
+      <td class="num-cell seg-metric"><span class="seg-val">${pos}</span>${segDelta(s.posPop, s.posYoy, true)}</td>
+      <td class="num-cell seg-metric"><span class="seg-val">${est}${fmt(s.sessions)}</span>${segDelta(s.sessPop, s.sessYoy, false)}</td>
+      <td class="num-cell seg-metric"><span class="seg-val">${fmt(s.totSessions)}</span>${segDelta(s.totSessPop, s.totSessYoy, false)}</td>
+      <td class="num-cell seg-metric"><span class="seg-val">${est}${fmtMoney(s.revenue)}</span>${segDelta(s.revPop, s.revYoy, false)}</td>
+      <td class="num-cell seg-metric"><span class="seg-val">${fmtMoney(s.totRevenue)}</span>${segDelta(s.totRevPop, s.totRevYoy, false)}</td>
+    </tr>`;
   }).join('');
 }
 

@@ -147,6 +147,9 @@
         <button class="snav-item" data-page="pages" onclick="window._navTo('pages')">
           <span class="snav-icon">📄</span><span class="snav-label">Pages</span>
         </button>
+        <button class="snav-item" data-page="segments" onclick="window._navTo('segments')">
+          <span class="snav-icon">📁</span><span class="snav-label">Segments</span>
+        </button>
         <div class="snav-div"></div>
         <div class="snav-section-lbl">Intelligence</div>
         <button class="snav-item" data-page="rank" onclick="window._navTo('rank')">
@@ -485,6 +488,44 @@
         </div>
 
       </div><!-- /page-pages -->
+
+      <!-- ─────────────────────────────────────
+           PAGE: SEGMENTS BREAKDOWN
+      ───────────────────────────────────── -->
+      <div class="page-view" id="page-segments" style="display:none">
+
+        <div class="pv-hdr">
+          <div>
+            <div class="pv-ttl">📁 Segments</div>
+            <div class="pv-sub">Totals &amp; trend for every segment side-by-side · respects date, country &amp; brand filters
+              <span class="pv-note">· change shown per the PoP/YoY toggle · <strong>~</strong> = estimated non-brand</span>
+            </div>
+          </div>
+          <div class="segtabs">
+            <button class="segtab active" data-seg="all"      onclick="window._setSegmentsTab('all')">All</button>
+            <button class="segtab"        data-seg="growing"  onclick="window._setSegmentsTab('growing')">↑ Growing</button>
+            <button class="segtab"        data-seg="decaying" onclick="window._setSegmentsTab('decaying')">↓ Decaying</button>
+          </div>
+        </div>
+
+        <div class="kw-panel">
+          <div class="kw-scroll">
+            <table class="dt seg-table">
+              <thead class="sticky-head"><tr>
+                <th>Segment</th>
+                <th>Clicks</th>
+                <th>Position</th>
+                <th>Organic Sess.</th>
+                <th>All Sess.</th>
+                <th>Organic Rev.</th>
+                <th>All Rev.</th>
+              </tr></thead>
+              <tbody id="seg-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /page-segments -->
 
       <!-- ─────────────────────────────────────
            PAGE: RANK INTELLIGENCE

@@ -2,11 +2,11 @@
 
 import { CLIENT_ID, COUNTRIES } from './config.js';
 import { S } from './state.js';
-import { doOAuth, handleOAuthRedirect, signOut, loadGscProps, loadGa4Props, loadAll, loadMetricExplorer, loadPages, loadCannibalization, loadPageUrls, fmt } from './api.js';
+import { doOAuth, handleOAuthRedirect, signOut, loadGscProps, loadGa4Props, loadAll, loadMetricExplorer, loadPages, loadCannibalization, loadSegments, loadPageUrls, fmt } from './api.js';
 import { renderAll, renderKeywords, renderCountryOpts,
          sortQ, exportCsv, showKwChart,
          recalcFiltered, updateDeltas,
-         renderSegments, renderMetricExplorer, renderGa4Cards,
+         renderSegments, renderSegmentsTable, renderMetricExplorer, renderGa4Cards,
          applyColVisibility,
          renderClientOpts, renderClientMgr, renderMgrCountryOpts,
          renderPages, renderRankIntelligence, renderCannibalization, renderInsights } from './render.js';
@@ -33,6 +33,7 @@ window._navTo = (page, skipLoad = false) => {
   if (!skipLoad) {
     if (page === 'pages')    { if (S.pagesData === null) loadPages(); else renderPages(); }
     if (page === 'cannibal') { if (S.cannibalData === null) loadCannibalization(); else renderCannibalization(); }
+    if (page === 'segments') { if (S.segmentsData === null) loadSegments(); else renderSegmentsTable(); }
     if (page === 'rank')     renderRankIntelligence();
     if (page === 'insights') renderInsights();
   }
@@ -159,6 +160,8 @@ window._setCmp = m => {
   syncUrlState();
   updateDeltas();
   recalcFiltered();
+  // Segments table shows PoP/YoY per cmpMode — re-render from cache (no refetch)
+  if (S.segmentsData) renderSegmentsTable();
 };
 
 window._setDays = d => {
@@ -193,6 +196,30 @@ window._setKwTab = t => {
   S.kwPage = 1;
   document.querySelectorAll('.kwtab').forEach(b => b.classList.toggle('active', b.dataset.kw===t));
   renderKeywords();
+};
+
+// ── SEGMENTS BREAKDOWN ──
+
+window._setSegmentsTab = t => {
+  S.segmentsTab = t;
+  document.querySelectorAll('.segtab').forEach(b => b.classList.toggle('active', b.dataset.seg===t));
+  renderSegmentsTable();
+};
+
+// Drill from a segment row into the Overview, filtered to that segment.
+window._segDrill = id => {
+  const seg = (S.segmentsData || []).find(s => s.id === id);
+  if (!seg) return;
+  if (seg.urlList && seg.urlList.length) {
+    S.urlSelections = [...seg.urlList];
+    document.getElementById('url-filter').value = '';
+  } else {
+    document.getElementById('url-filter').value = seg.pattern || '';
+    S.urlSelections = [];
+  }
+  document.getElementById('url-drop').style.display = 'none';
+  window._navTo('overview', true);
+  syncUrlState(); updateCtxBadge(); loadAll();
 };
 
 window._kwGoPage = n => {
@@ -893,7 +920,7 @@ async function showApp() {
   applyColVisibility();
   // restore page navigation
   const pageParam = urlParams.get('page');
-  const validPages = ['overview','keywords','rank','pages','cannibal','insights','explorer'];
+  const validPages = ['overview','keywords','rank','pages','segments','cannibal','insights','explorer'];
   const startPage  = validPages.includes(pageParam) ? pageParam : 'overview';
   // keywords & explorer live on overview — boot on overview, then scroll after load
   if (startPage === 'keywords' || startPage === 'explorer') {

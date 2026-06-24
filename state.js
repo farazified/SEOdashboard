@@ -27,6 +27,9 @@ export const S = {
   selClient:   '',           // active client id
   // segments
   segments:    [],           // custom user-saved segments
+  // segments breakdown table (null = not yet fetched)
+  segmentsData: null,        // [{id,name,color,clicks,sessions,position,revenue,...deltas}]
+  segmentsTab:  'all',       // 'all' | 'growing' | 'decaying'
   // url filter selections (exact-match mode)
   urlSelections: [],   // full URLs selected for equals+OR filtering
   pageUrls:      [],   // lightweight page list for autocomplete [{url, clicks}]

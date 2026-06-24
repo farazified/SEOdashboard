@@ -1,6 +1,6 @@
 // ── api.js ── all data fetching ──
 
-import { CLIENT_ID, GSC_BASE, GA4_BASE, GA4_ADMIN, SCOPES } from './config.js';
+import { CLIENT_ID, GSC_BASE, GA4_BASE, GA4_ADMIN, SCOPES, BUILT_IN_SEGS } from './config.js';
 import { S, METRICS } from './state.js';
 
 // Map GSC 3-letter country codes → GA4 country dimension values
@@ -220,12 +220,14 @@ function _pbDone() {
 //     issues where GSC stores URLs with trailing slashes that the user's list
 //     does not include.
 // extraFilters is an array of additional filter objects added to every group (e.g. brand notContains).
-function _buildGscGroups(uf, cty, extraFilters = []) {
+// Core builder — takes an explicit pattern + urlList so it can be reused for the
+// global filter (S.urlSelections / url-filter) AND per-segment in loadSegments().
+function _gscGroupsFor(pattern, urlList, cty, extraFilters = []) {
   const cf = cty ? { dimension: 'country', operator: 'equals', expression: cty } : null;
-  if (S.urlSelections.length > 0) {
-    if (S.urlSelections.length === 1) {
+  if (urlList && urlList.length > 0) {
+    if (urlList.length === 1) {
       // Single URL — try both with-and-without trailing slash via regex
-      const u = S.urlSelections[0].replace(/\/$/, '');
+      const u = urlList[0].replace(/\/$/, '');
       const escaped = u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       return [{
         filters: [
@@ -236,7 +238,7 @@ function _buildGscGroups(uf, cty, extraFilters = []) {
       }];
     }
     // Multiple URLs — combine into one regex (avoids GSC group-count limit)
-    const escaped = S.urlSelections.map(u =>
+    const escaped = urlList.map(u =>
       u.replace(/\/$/, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     );
     const regex = '^(?:' + escaped.join('|') + ')/?$';
@@ -248,18 +250,21 @@ function _buildGscGroups(uf, cty, extraFilters = []) {
       ],
     }];
   }
-  const pf = uf ? { dimension: 'page', operator: 'contains', expression: uf } : null;
+  const pf = pattern ? { dimension: 'page', operator: 'contains', expression: pattern } : null;
   const f = [...(pf ? [pf] : []), ...(cf ? [cf] : []), ...extraFilters];
   return f.length ? [{ filters: f }] : [];
+}
+function _buildGscGroups(uf, cty, extraFilters = []) {
+  return _gscGroupsFor(uf, S.urlSelections, cty, extraFilters);
 }
 
 // GA4: returns a pageFilter expression (CONTAINS, EXACT, or FULL_REGEXP).
 // For multiple URLs we use FULL_REGEXP with optional trailing slash — same
 // trailing-slash variation problem as GSC, plus it sidesteps any limits on
 // the size of an orGroup expression list.
-function _buildGa4PageFilter(uf) {
-  if (S.urlSelections.length > 0) {
-    const paths = S.urlSelections.map(u =>
+function _ga4PageFilterFor(pattern, urlList) {
+  if (urlList && urlList.length > 0) {
+    const paths = urlList.map(u =>
       (u.replace(/^https?:\/\/[^/]+/, '') || '/').replace(/\/$/, '') || '/'
     );
     if (paths.length === 1) {
@@ -270,7 +275,10 @@ function _buildGa4PageFilter(uf) {
     const regex   = '^(?:' + escaped.join('|') + ')/?$';
     return { filter: { fieldName: 'landingPage', stringFilter: { matchType: 'FULL_REGEXP', value: regex }}};
   }
-  return uf ? { filter: { fieldName: 'landingPage', stringFilter: { matchType: 'CONTAINS', value: uf }}} : null;
+  return pattern ? { filter: { fieldName: 'landingPage', stringFilter: { matchType: 'CONTAINS', value: pattern }}} : null;
+}
+function _buildGa4PageFilter(uf) {
+  return _ga4PageFilterFor(uf, S.urlSelections);
 }
 
 // ── MAIN LOAD ──
@@ -308,6 +316,7 @@ export async function loadAll() {
   // invalidate page-specific caches so they re-fetch on next navigation
   S.pagesData    = null;
   S.cannibalData = null;
+  S.segmentsData = null;
 
   await Promise.all([
     S.selGsc ? loadGsc(S.selGsc) : Promise.resolve(),
@@ -318,6 +327,7 @@ export async function loadAll() {
   // if user is on a lazy page, reload it now data is fresh
   if (S.page === 'pages'   ) loadPages();
   if (S.page === 'cannibal') loadCannibalization();
+  if (S.page === 'segments') loadSegments();
   // reload Explorer if open or already has data (keeps filter in sync)
   const _exPanel = document.getElementById('sec-explorer');
   const _exOpen  = _exPanel && !_exPanel.classList.contains('me-collapsed');
@@ -562,6 +572,116 @@ export async function loadGa4(propId) {
 let _meToken = 0;
 
 // Build brand exclusion filters for the GSC query dimension
+// ── SEGMENTS BREAKDOWN ──
+// Per-segment exact totals: Clicks/Impr/Position from a dimensionless GSC
+// aggregate (same trick as loadGsc's postA), Sessions/Revenue from summed GA4
+// organic (same as loadGa4). Looped over every segment and fired in parallel.
+// Honors date range, country, and the Hide-branded toggle (exact non-brand GSC
+// totals; GA4 estimated via the segment's non-brand click ratio, like the cards).
+//
+// NOTE: with brand filter on, each segment ≈ 6 GSC + 3 GA4 calls. For a handful
+// of segments that's ~50 parallel requests — fine here, but if GSC starts
+// returning 429s, batch the `segs.map` loop instead of one big Promise.all.
+export async function loadSegments() {
+  const finish = async () => { const { renderSegmentsTable } = await import('./render.js'); renderSegmentsTable(); };
+  if (!S.selGsc) { S.segmentsData = []; return finish(); }
+
+  const { start, end, popStart, popEnd, yoyStart, yoyEnd } = getDates();
+  const cty    = S.selCountry;
+  const brand  = _meBrandFilters();                 // [] when brand filter off
+  const ga4Cty = cty ? GA4_COUNTRY_MAP[cty] : null;
+  const segs   = [...BUILT_IN_SEGS, ...(S.segments || [])];
+
+  const gscUrl = `${GSC_BASE}/sites/${encodeURIComponent(S.selGsc)}/searchAnalytics/query`;
+  const agg0   = rows => { const r=(rows||[])[0]||{}; return { cl:r.clicks||0, im:r.impressions||0, apos:r.position||null }; };
+
+  // GSC dimensionless aggregate for one segment+period (+ optional extra filters)
+  const gscAgg = (seg, s, e, extra=[]) => {
+    const groups = _gscGroupsFor(seg.pattern || '', seg.urlList, cty, extra);
+    const hasPageFilter = !!(seg.pattern || (seg.urlList && seg.urlList.length));
+    return req(gscUrl, { method:'POST', body: JSON.stringify({
+      startDate:s, endDate:e,
+      ...(groups.length ? { dimensionFilterGroups: groups } : {}),
+      ...(hasPageFilter ? { aggregationType: 'byPage' } : {}),
+    })});
+  };
+
+  // GA4 sessions+revenue for one segment+period, summed across pages.
+  // organic=true restricts to Organic Search/Shopping (same as the cards);
+  // organic=false drops that restriction → all-traffic totals (matches totSess/totRev).
+  const ga4Sum = async (seg, s, e, organic=true) => {
+    if (!S.selGa4) return { s:0, r:0 };
+    const orgF = { orGroup: { expressions: [
+      { filter: { fieldName:'sessionDefaultChannelGroup', stringFilter:{ matchType:'EXACT', value:'Organic Search'   }}},
+      { filter: { fieldName:'sessionDefaultChannelGroup', stringFilter:{ matchType:'EXACT', value:'Organic Shopping' }}},
+    ]}};
+    const pageF = _ga4PageFilterFor(seg.pattern || '', seg.urlList);
+    const ctyF  = ga4Cty ? { filter:{ fieldName:'country', stringFilter:{ matchType:'EXACT', value:ga4Cty }}} : null;
+    const exprs = [...(organic?[orgF]:[]), ...(pageF?[pageF]:[]), ...(ctyF?[ctyF]:[])];
+    const dimF  = exprs.length === 0 ? null : exprs.length === 1 ? exprs[0] : { andGroup:{ expressions: exprs } };
+    const res   = await req(`${GA4_BASE}/properties/${S.selGa4}:runReport`, { method:'POST', body: JSON.stringify({
+      dateRanges:[{ startDate:s, endDate:e }],
+      dimensions:[{ name:'landingPage' }],
+      metrics:[{ name:'sessions' }, { name:'purchaseRevenue' }],
+      ...(dimF ? { dimensionFilter: dimF } : {}), limit: 250,
+    })});
+    return (res.rows||[]).reduce((a,r)=>({ s:a.s+(+(r.metricValues[0].value)||0), r:a.r+(+(r.metricValues[1].value)||0) }), { s:0, r:0 });
+  };
+
+  try {
+    S.segmentsData = await Promise.all(segs.map(async seg => {
+      const tasks = [
+        gscAgg(seg, start, end), gscAgg(seg, popStart, popEnd), gscAgg(seg, yoyStart, yoyEnd),                 // 0-2 GSC
+        ga4Sum(seg, start, end, true),  ga4Sum(seg, popStart, popEnd, true),  ga4Sum(seg, yoyStart, yoyEnd, true),  // 3-5 GA4 organic
+        ga4Sum(seg, start, end, false), ga4Sum(seg, popStart, popEnd, false), ga4Sum(seg, yoyStart, yoyEnd, false), // 6-8 GA4 all-traffic
+      ];
+      if (brand.length) tasks.push(
+        gscAgg(seg, start, end, brand), gscAgg(seg, popStart, popEnd, brand), gscAgg(seg, yoyStart, yoyEnd, brand), // 9-11 GSC non-brand
+      );
+      const r = await Promise.all(tasks);
+      const cur=agg0(r[0].rows), pop=agg0(r[1].rows), yoy=agg0(r[2].rows);
+      const gc=r[3], gp=r[4], gy=r[5];   // GA4 organic
+      const ac=r[6], ap=r[7], ay=r[8];   // GA4 all-traffic
+
+      // Default = all-organic GSC figures
+      let cl=cur.cl, im=cur.im, pos=cur.apos, clPrev=pop.cl, clYoyV=yoy.cl, posPrev=pop.apos, posYoyV=yoy.apos;
+      let estimated=false, ratio=null;
+
+      // Brand filter on → swap to exact non-brand GSC figures, derive ratio for GA4
+      if (brand.length) {
+        const nbCur=agg0(r[9].rows), nbPop=agg0(r[10].rows), nbYoy=agg0(r[11].rows);
+        ratio = cur.cl > 0 ? nbCur.cl/cur.cl : null;
+        cl=nbCur.cl; im=nbCur.im; pos=nbCur.apos;
+        clPrev=nbPop.cl; clYoyV=nbYoy.cl; posPrev=nbPop.apos; posYoyV=nbYoy.apos;
+        estimated = ratio != null;
+      }
+
+      // Organic GA4 — estimate non-brand via the click ratio when known.
+      // All-traffic GA4 is shown raw (brand filter only concerns organic search).
+      const mul = (estimated && ratio != null) ? ratio : 1;
+      const sess=gc.s*mul, rev=gc.r*mul, sessP=gp.s*mul, sessY=gy.s*mul, revP=gp.r*mul, revY=gy.r*mul;
+
+      return {
+        id: seg.id, name: seg.name, color: seg.color,
+        pattern: seg.pattern, urlList: seg.urlList || null,
+        clicks: cl,    clicksPop: fmtD(cl, clPrev),   clicksYoy: fmtD(cl, clYoyV),
+        position: pos, posPop: pos&&posPrev ? fmtD(pos, posPrev) : null, posYoy: pos&&posYoyV ? fmtD(pos, posYoyV) : null,
+        sessions: sess, sessPop: fmtD(sess, sessP),   sessYoy: fmtD(sess, sessY),
+        revenue: rev,   revPop: fmtD(rev, revP),      revYoy: fmtD(rev, revY),
+        totSessions: ac.s, totSessPop: fmtD(ac.s, ap.s), totSessYoy: fmtD(ac.s, ay.s),
+        totRevenue:  ac.r, totRevPop:  fmtD(ac.r, ap.r), totRevYoy:  fmtD(ac.r, ay.r),
+        estimated,
+      };
+    }));
+  } catch(e) {
+    console.error('segments load failed:', e);
+    S.segmentsData = [];
+    document.getElementById('err-banner').textContent = 'Segments error: ' + e.message;
+    document.getElementById('err-banner').style.display = 'block';
+  }
+  return finish();
+}
+
 function _meBrandFilters() {
   if (!S.hideBranded) return [];
   const v = document.getElementById('brand-terms')?.value.trim();
