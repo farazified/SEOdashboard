@@ -135,6 +135,20 @@ body { background: var(--bg); color: var(--tx); font-family: var(--body); min-he
 .pill[data-preset] { border-style: dashed; }
 .pill[data-preset].active { border-style: solid; }
 .pill-sep { color: var(--tx3); font-size: 10px; padding: 0 2px; opacity: .4; }
+
+/* Date-range dropdown */
+.date-dd { position: relative; }
+.date-dd-btn { display: flex; align-items: center; gap: 7px; background: var(--bg3); border: 1px solid var(--b1); border-radius: 8px; color: var(--tx); font-family: var(--sans); font-size: 11px; font-weight: 500; padding: 5px 11px; cursor: pointer; transition: all .15s; white-space: nowrap; min-width: 120px; justify-content: space-between; }
+.date-dd-btn:hover, .date-dd-btn.active { border-color: var(--acc); color: #fff; }
+.date-dd-caret { font-size: 9px; color: var(--tx3); }
+.date-dd-menu { display: none; position: absolute; left: 0; top: 34px; z-index: 200; background: var(--bg3); border: 1px solid var(--b2); border-radius: 10px; padding: 7px; box-shadow: var(--sh2); min-width: 170px; }
+.date-dd-menu.open { display: block; animation: fadeIn .12s ease; }
+.dd-group-lbl { font-size: 9px; color: var(--tx3); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; font-family: var(--sans); margin: 7px 6px 3px; }
+.dd-group-lbl:first-child { margin-top: 2px; }
+.dd-opt { display: block; width: 100%; text-align: left; background: transparent; border: none; border-radius: 6px; color: var(--tx2); font-family: var(--body); font-size: 12px; padding: 6px 9px; cursor: pointer; transition: all .12s; }
+.dd-opt:hover { background: var(--bg4); color: var(--tx); }
+.dd-opt.active { background: var(--acc); color: #fff; font-weight: 600; }
+.date-dd-menu .custom-days-inp { width: 100%; margin-top: 4px; box-sizing: border-box; }
 .user-btn { background: var(--bg3); border: 1px solid var(--b2); border-radius: 8px; color: var(--tx2); font-family: var(--body); font-size: 11px; padding: 5px 12px; cursor: pointer; transition: all .15s; }
 .user-btn:hover { border-color: var(--red); color: var(--red); }
 

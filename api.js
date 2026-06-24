@@ -62,14 +62,45 @@ async function req(url, opts = {}) {
 
 // ── DATE HELPERS ──
 
-function ds(d) { return d.toISOString().split('T')[0]; }
+// Format as a LOCAL calendar date (YYYY-MM-DD). Using toISOString() here would
+// convert local midnight to UTC and shift the date back a day for users ahead of
+// UTC (e.g. Australia), throwing month/quarter/year boundaries off by one.
+function ds(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 const fmtD_ = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
 export function getDates() {
-  if (S.datePreset === 'lastMonth')   return _lastMonthDates();
-  if (S.datePreset === 'lastQuarter') return _lastQuarterDates();
-  if (S.datePreset === 'ytd')         return _yearToDateDates();
+  switch (S.datePreset) {
+    case 'thisWeek':    return _thisWeekDates();
+    case 'lastWeek':    return _lastWeekDates();
+    case 'thisMonth':   return _thisMonthDates();
+    case 'lastMonth':   return _lastMonthDates();
+    case 'thisQuarter': return _thisQuarterDates();
+    case 'lastQuarter': return _lastQuarterDates();
+    case 'ytd':         return _yearToDateDates();
+    case 'lastYear':    return _lastYearDates();
+  }
   return _rollingDates();
+}
+
+// Monday-based start of the week containing d.
+function _weekStart(d) {
+  const x = new Date(d); const dow = x.getDay();
+  x.setDate(x.getDate() - (dow === 0 ? 6 : dow - 1));
+  x.setHours(0, 0, 0, 0); return x;
+}
+// Partial ("this …") period: today is the end; PoP/YoY use the same elapsed
+// duration measured from the previous unit / same unit last year.
+function _partialDates(start, prevStart, prevYearStart, label) {
+  const end = new Date();
+  const elapsed = end.getTime() - start.getTime();
+  return {
+    start: ds(start), end: ds(end),
+    popStart: ds(prevStart),     popEnd: ds(new Date(prevStart.getTime() + elapsed)),
+    yoyStart: ds(prevYearStart), yoyEnd: ds(new Date(prevYearStart.getTime() + elapsed)),
+    label,
+  };
 }
 
 function _rollingDates() {
@@ -144,12 +175,65 @@ function _yearToDateDates() {
   // YoY: same period two years ago
   const yoyStart = new Date(yr - 2, 0, 1);
   const yoyEnd   = new Date(yr - 2, t.getMonth(), t.getDate());
-  const label    = `YTD ${yr} · ${fmtD_(start)} – ${fmtD_(end)}`;
+  const label    = `Year to date · ${fmtD_(start)} – ${fmtD_(end)}`;
   return {
     start: ds(start), end: ds(end),
     popStart: ds(popStart), popEnd: ds(popEnd),
     yoyStart: ds(yoyStart), yoyEnd: ds(yoyEnd),
     label,
+  };
+}
+
+function _thisWeekDates() {
+  const start = _weekStart(new Date());
+  const prev  = new Date(start); prev.setDate(prev.getDate() - 7);
+  const prevY = new Date(start); prevY.setDate(prevY.getDate() - 364); // keep weekday alignment
+  return _partialDates(start, prev, prevY, `This week · ${fmtD_(start)} – ${fmtD_(new Date())}`);
+}
+
+function _lastWeekDates() {
+  const thisMon  = _weekStart(new Date());
+  const start    = new Date(thisMon); start.setDate(start.getDate() - 7);
+  const end      = new Date(thisMon); end.setDate(end.getDate() - 1);     // last Sunday
+  const popStart = new Date(start);   popStart.setDate(popStart.getDate() - 7);
+  const popEnd   = new Date(end);     popEnd.setDate(popEnd.getDate() - 7);
+  const yoyStart = new Date(start);   yoyStart.setDate(yoyStart.getDate() - 364);
+  const yoyEnd   = new Date(end);     yoyEnd.setDate(yoyEnd.getDate() - 364);
+  return {
+    start: ds(start), end: ds(end),
+    popStart: ds(popStart), popEnd: ds(popEnd),
+    yoyStart: ds(yoyStart), yoyEnd: ds(yoyEnd),
+    label: `Last week · ${fmtD_(start)} – ${fmtD_(end)}`,
+  };
+}
+
+function _thisMonthDates() {
+  const t = new Date(), y = t.getFullYear(), m = t.getMonth();
+  const start  = new Date(y, m, 1);
+  const prev   = new Date(y, m - 1, 1);
+  const prevY  = new Date(y - 1, m, 1);
+  return _partialDates(start, prev, prevY, `This month · ${start.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}`);
+}
+
+function _thisQuarterDates() {
+  const t = new Date(), y = t.getFullYear(), q = Math.floor(t.getMonth() / 3);
+  const start = new Date(y, q * 3, 1);
+  const prev  = new Date(q === 0 ? y - 1 : y, (q === 0 ? 3 : q - 1) * 3, 1);
+  const prevY = new Date(y - 1, q * 3, 1);
+  return _partialDates(start, prev, prevY, `This quarter · Q${q + 1} ${y}`);
+}
+
+function _lastYearDates() {
+  const y = new Date().getFullYear();
+  // Full previous calendar year; PoP and YoY both = the year before it.
+  const start    = new Date(y - 1, 0, 1);
+  const end      = new Date(y - 1, 11, 31);
+  const popStart = new Date(y - 2, 0, 1), popEnd = new Date(y - 2, 11, 31);
+  return {
+    start: ds(start), end: ds(end),
+    popStart: ds(popStart), popEnd: ds(popEnd),
+    yoyStart: ds(popStart), yoyEnd: ds(popEnd),
+    label: `Last year · ${y - 1}`,
   };
 }
 

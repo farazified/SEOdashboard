@@ -164,12 +164,49 @@ window._setCmp = m => {
   if (S.segmentsData) renderSegmentsTable();
 };
 
+// ── DATE RANGE DROPDOWN ──
+
+// Human label for the current range (dropdown button + context badge).
+const _DATE_PRESET_LBL = {
+  thisWeek:'This week',    lastWeek:'Last week',
+  thisMonth:'This month',  lastMonth:'Last month',
+  thisQuarter:'This quarter', lastQuarter:'Last quarter',
+  ytd:'Year to date',      lastYear:'Last year',
+};
+const _DATE_DAYS_LBL = { 7:'Last 7 days', 28:'Last 28 days', 30:'Last 30 days', 90:'Last 3 months', 180:'Last 6 months', 365:'Last 12 months', 480:'Last 16 months' };
+function _dateLabel() {
+  if (S.datePreset) return _DATE_PRESET_LBL[S.datePreset] || S.datePreset;
+  return _DATE_DAYS_LBL[S.days] || ('Last ' + S.days + ' days');
+}
+// Sync the dropdown's active option + button label to current state.
+function _syncDateUI() {
+  document.querySelectorAll('.dd-opt').forEach(b => {
+    const active = S.datePreset
+      ? b.dataset.preset === S.datePreset
+      : (!b.dataset.preset && +b.dataset.d === S.days);
+    b.classList.toggle('active', active);
+  });
+  const lbl = document.getElementById('date-dd-lbl');
+  if (lbl) lbl.textContent = _dateLabel();
+}
+window._toggleDateDrop = e => {
+  e.stopPropagation();
+  const menu = document.getElementById('date-dd-menu');
+  const btn  = document.getElementById('date-dd-btn');
+  const opening = !menu.classList.contains('open');
+  menu.classList.toggle('open', opening);
+  btn?.classList.toggle('active', opening);
+};
+function _closeDateDrop() {
+  document.getElementById('date-dd-menu')?.classList.remove('open');
+  document.getElementById('date-dd-btn')?.classList.remove('active');
+}
+
 window._setDays = d => {
   S.days = d;
   S.datePreset = null;
-  document.querySelectorAll('.pill').forEach(p =>
-    p.classList.toggle('active', !p.dataset.preset && +p.dataset.d === d));
   document.getElementById('custom-days').value = '';
+  _syncDateUI(); _closeDateDrop();
   syncUrlState(); updateCtxBadge();
   loadAll();
 };
@@ -179,15 +216,14 @@ window._setCustomDays = v => {
   if (!n || n < 1) return;
   S.days = n;
   S.datePreset = null;
-  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  _syncDateUI(); _closeDateDrop();
   syncUrlState(); updateCtxBadge(); loadAll();
 };
 
 window._setPreset = preset => {
   S.datePreset = preset;
-  document.querySelectorAll('.pill').forEach(p =>
-    p.classList.toggle('active', p.dataset.preset === preset));
   document.getElementById('custom-days').value = '';
+  _syncDateUI(); _closeDateDrop();
   syncUrlState(); updateCtxBadge(); loadAll();
 };
 
@@ -844,8 +880,9 @@ export function syncUrlState() {
 function restoreUrlState() {
   const p = new URLSearchParams(location.search);
   const uf = p.get('url');       if (uf) { const el = document.getElementById('url-filter'); if (el) el.value = uf; }
-  const days = p.get('days');    if (days && !p.get('preset')) { S.days = +days; document.querySelectorAll('.pill').forEach(pl => pl.classList.toggle('active', !pl.dataset.preset && +pl.dataset.d === S.days)); }
-  const preset = p.get('preset'); if (preset) { S.datePreset = preset; document.querySelectorAll('.pill').forEach(pl => pl.classList.toggle('active', pl.dataset.preset === preset)); }
+  const days = p.get('days');    if (days && !p.get('preset')) { S.days = +days; }
+  const preset = p.get('preset'); if (preset) { S.datePreset = preset; }
+  _syncDateUI();
   const cmp = p.get('cmp');      if (cmp) { S.cmpMode = cmp; document.querySelectorAll('.cmp-btn').forEach(b => b.classList.toggle('active', b.dataset.cmp === cmp)); }
   const country = p.get('country'); if (country) S.selCountry = country;
   return p; // caller reads gsc / ga4 after properties load
@@ -862,15 +899,7 @@ export function updateCtxBadge() {
 
   segEl.textContent = seg || 'Sitewide';
 
-  if (S.datePreset === 'ytd')              dateEl.textContent = 'YTD';
-  else if (S.datePreset === 'lastMonth')        dateEl.textContent = 'Last mo';
-  else if (S.datePreset === 'lastQuarter') dateEl.textContent = 'Last qtr';
-  else if (S.days === 7)                   dateEl.textContent = '7d';
-  else if (S.days === 28)                  dateEl.textContent = '28d';
-  else if (S.days === 90)                  dateEl.textContent = '3m';
-  else if (S.days === 180)                 dateEl.textContent = '6m';
-  else if (S.days === 365)                 dateEl.textContent = '12m';
-  else                                     dateEl.textContent = S.days + 'd';
+  dateEl.textContent = _dateLabel();
 
   const ctySpan = document.getElementById('ctx-country');
   if (ctySpan) ctySpan.textContent = cty ? ' · ' + cty : '';
@@ -983,6 +1012,12 @@ document.addEventListener('click', e => {
   if (cdrop && cdrop.classList.contains('open') && !cdrop.contains(e.target) && e.target !== cbtn) {
     cdrop.classList.remove('open');
     cbtn?.classList.remove('active');
+  }
+  // date-range dropdown
+  const dmenu = document.getElementById('date-dd-menu');
+  const dbtn  = document.getElementById('date-dd-btn');
+  if (dmenu && dmenu.classList.contains('open') && !dmenu.contains(e.target) && !dbtn?.contains(e.target)) {
+    _closeDateDrop();
   }
 });
 

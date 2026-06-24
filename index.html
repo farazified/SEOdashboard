@@ -199,21 +199,34 @@
         <button class="btn-go" onclick="window._loadAll()">Analyze →</button>
         <button class="btn-clr" id="btn-clr" onclick="window._clearDrill()" style="display:none">✕ Clear</button>
         <span class="tsep">|</span>
-        <div class="dpills">
-          <button class="pill" data-d="7"   onclick="window._setDays(7)">7d</button>
-          <button class="pill" data-d="28"  onclick="window._setDays(28)">28d</button>
-          <button class="pill active" data-d="30" onclick="window._setDays(30)">30d</button>
-          <button class="pill" data-d="90"  onclick="window._setDays(90)">3m</button>
-          <button class="pill" data-d="180" onclick="window._setDays(180)">6m</button>
-          <button class="pill" data-d="365" onclick="window._setDays(365)">12m</button>
-          <span class="pill-sep">|</span>
-          <button class="pill" data-preset="ytd"         onclick="window._setPreset('ytd')">YTD</button>
-          <button class="pill" data-preset="lastMonth"   onclick="window._setPreset('lastMonth')">Last mo</button>
-          <button class="pill" data-preset="lastQuarter" onclick="window._setPreset('lastQuarter')">Last qtr</button>
+        <div class="date-dd">
+          <button class="date-dd-btn" id="date-dd-btn" onclick="window._toggleDateDrop(event)">
+            <span id="date-dd-lbl">Last 30 days</span><span class="date-dd-caret">▾</span>
+          </button>
+          <div class="date-dd-menu" id="date-dd-menu">
+            <div class="dd-group-lbl">Rolling</div>
+            <button class="dd-opt" data-d="7"   onclick="window._setDays(7)">Last 7 days</button>
+            <button class="dd-opt" data-d="28"  onclick="window._setDays(28)">Last 28 days</button>
+            <button class="dd-opt active" data-d="30" onclick="window._setDays(30)">Last 30 days</button>
+            <button class="dd-opt" data-d="90"  onclick="window._setDays(90)">Last 3 months</button>
+            <button class="dd-opt" data-d="180" onclick="window._setDays(180)">Last 6 months</button>
+            <button class="dd-opt" data-d="365" onclick="window._setDays(365)">Last 12 months</button>
+            <button class="dd-opt" data-d="480" onclick="window._setDays(480)">Last 16 months</button>
+            <div class="dd-group-lbl">Calendar</div>
+            <button class="dd-opt" data-preset="thisWeek"    onclick="window._setPreset('thisWeek')">This week</button>
+            <button class="dd-opt" data-preset="lastWeek"    onclick="window._setPreset('lastWeek')">Last week</button>
+            <button class="dd-opt" data-preset="thisMonth"   onclick="window._setPreset('thisMonth')">This month</button>
+            <button class="dd-opt" data-preset="lastMonth"   onclick="window._setPreset('lastMonth')">Last month</button>
+            <button class="dd-opt" data-preset="thisQuarter" onclick="window._setPreset('thisQuarter')">This quarter</button>
+            <button class="dd-opt" data-preset="lastQuarter" onclick="window._setPreset('lastQuarter')">Last quarter</button>
+            <button class="dd-opt" data-preset="ytd"         onclick="window._setPreset('ytd')">Year to date</button>
+            <button class="dd-opt" data-preset="lastYear"    onclick="window._setPreset('lastYear')">Last year</button>
+            <div class="dd-group-lbl">Custom</div>
+            <input class="custom-days-inp" id="custom-days" type="number" min="1" max="900" placeholder="Custom days…"
+              onkeydown="if(event.key==='Enter') window._setCustomDays(this.value)"
+              onblur="if(this.value) window._setCustomDays(this.value)"/>
+          </div>
         </div>
-        <input class="custom-days-inp" id="custom-days" type="number" min="1" max="900" placeholder="Custom days…"
-          onkeydown="if(event.key==='Enter') window._setCustomDays(this.value)"
-          onblur="if(this.value) window._setCustomDays(this.value)"/>
         <span class="tsep">|</span>
         <button class="btn-settings" id="btn-settings" onclick="window._toggleSettings()" title="Brand filter settings">⚙ Brand</button>
         <span class="brand-active-tag" id="brand-active-tag">🏷 Brand hidden</span>
