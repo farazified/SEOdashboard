@@ -648,9 +648,11 @@ window._ulCountUrls = () => {
 
 function _parseUlUrls() {
   const raw = document.getElementById('ul-urls-inp')?.value || '';
-  return raw.split('\n')
+  const lines = raw.split('\n')
     .map(l => l.trim())
     .filter(l => l.length > 0 && (l.startsWith('http://') || l.startsWith('https://') || l.startsWith('/')));
+  // Drop duplicates (keep first occurrence) so only unique URLs are counted/saved.
+  return [...new Set(lines)];
 }
 
 function _renderUlSavedList() {
