@@ -500,10 +500,9 @@ export async function loadGa4(propId) {
   const { start, end, popStart, popEnd, yoyStart, yoyEnd } = getDates();
   const uf = getCleanUrl();
 
-  const orgF  = { orGroup: { expressions: [
-    { filter: { fieldName: 'sessionDefaultChannelGroup', stringFilter: { matchType: 'EXACT', value: 'Organic Search' }}},
-    { filter: { fieldName: 'sessionDefaultChannelGroup', stringFilter: { matchType: 'EXACT', value: 'Organic Shopping' }}},
-  ]}};
+  // Organic = Organic Search only (excludes Organic Shopping) to match GA4's
+  // "Organic Search" channel row.
+  const orgF  = { filter: { fieldName: 'sessionDefaultChannelGroup', stringFilter: { matchType: 'EXACT', value: 'Organic Search' }}};
   const pageF  = _buildGa4PageFilter(uf);
   const ga4Cty = S.selCountry ? GA4_COUNTRY_MAP[S.selCountry] : null;
   const ctyF   = ga4Cty ? { filter: { fieldName: 'country', stringFilter: { matchType: 'EXACT', value: ga4Cty }}} : null;
@@ -606,14 +605,11 @@ export async function loadSegments() {
   };
 
   // GA4 sessions+revenue for one segment+period, summed across pages.
-  // organic=true restricts to Organic Search/Shopping (same as the cards);
+  // organic=true restricts to Organic Search (same as the cards);
   // organic=false drops that restriction → all-traffic totals (matches totSess/totRev).
   const ga4Sum = async (seg, s, e, organic=true) => {
     if (!S.selGa4) return { s:0, r:0 };
-    const orgF = { orGroup: { expressions: [
-      { filter: { fieldName:'sessionDefaultChannelGroup', stringFilter:{ matchType:'EXACT', value:'Organic Search'   }}},
-      { filter: { fieldName:'sessionDefaultChannelGroup', stringFilter:{ matchType:'EXACT', value:'Organic Shopping' }}},
-    ]}};
+    const orgF = { filter: { fieldName:'sessionDefaultChannelGroup', stringFilter:{ matchType:'EXACT', value:'Organic Search' }}};
     const pageF = _ga4PageFilterFor(seg.pattern || '', seg.urlList);
     const ctyF  = ga4Cty ? { filter:{ fieldName:'country', stringFilter:{ matchType:'EXACT', value:ga4Cty }}} : null;
     const exprs = [...(organic?[orgF]:[]), ...(pageF?[pageF]:[]), ...(ctyF?[ctyF]:[])];
@@ -729,10 +725,7 @@ export async function loadMetricExplorer() {
     const end   = new Date();
     const start = new Date(end); start.setDate(start.getDate() - days);
 
-    const orgF = { orGroup: { expressions: [
-      { filter: { fieldName: 'sessionDefaultChannelGroup', stringFilter: { matchType: 'EXACT', value: 'Organic Search' }}},
-      { filter: { fieldName: 'sessionDefaultChannelGroup', stringFilter: { matchType: 'EXACT', value: 'Organic Shopping' }}},
-    ]}};
+    const orgF = { filter: { fieldName: 'sessionDefaultChannelGroup', stringFilter: { matchType: 'EXACT', value: 'Organic Search' }}};
     const pageF  = _buildGa4PageFilter(uf);
     const ga4Cty = cty ? GA4_COUNTRY_MAP[cty] : null;
     const ctyF   = ga4Cty ? { filter: { fieldName: 'country', stringFilter: { matchType: 'EXACT', value: ga4Cty }}} : null;
@@ -840,10 +833,7 @@ export async function loadPages() {
     // Merge GA4 per-page organic data — three parallel fetches for cur/pop/yoy
     if (S.selGa4) {
       try {
-        const orgF = { orGroup: { expressions: [
-          { filter: { fieldName: 'sessionDefaultChannelGroup', stringFilter: { matchType: 'EXACT', value: 'Organic Search' }}},
-          { filter: { fieldName: 'sessionDefaultChannelGroup', stringFilter: { matchType: 'EXACT', value: 'Organic Shopping' }}},
-        ]}};
+        const orgF = { filter: { fieldName: 'sessionDefaultChannelGroup', stringFilter: { matchType: 'EXACT', value: 'Organic Search' }}};
         const pageF  = _buildGa4PageFilter(uf);
         const ga4Cty = S.selCountry ? GA4_COUNTRY_MAP[S.selCountry] : null;
         const ctyF   = ga4Cty ? { filter: { fieldName: 'country', stringFilter: { matchType: 'EXACT', value: ga4Cty }}} : null;
