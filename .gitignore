@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# Local editor / tooling config
+.claude/
+
+# Secrets & local-only config — never commit these
+.env
+.env.*
+*.local
+config.local.js
+secrets.*
+
+# Dependencies (in case any tooling is added later)
+node_modules/
