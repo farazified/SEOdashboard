@@ -820,8 +820,26 @@ window._meSrc = src => {
       S.meMetric = 'clicks';
     }
   }
+  // GSC is hard-capped at 16 months by Google — clamp if a longer range was active.
+  if (src === 'gsc' && S.meDays > 500) {
+    S.meDays = 500;
+    document.querySelectorAll('.me-range').forEach(b => b.classList.toggle('active', +b.dataset.days === 500));
+  }
+  window._meSyncRange();
   loadMetricExplorer();
 };
+
+// Enable/disable the >16-month ranges per source. Google Search Console only
+// provides 16 months of data; GA4 keeps aggregated history far longer.
+window._meSyncRange = () => {
+  const gsc = (S.meSource || 'gsc') === 'gsc';
+  document.querySelectorAll('.me-range').forEach(b => {
+    const long = +b.dataset.days > 500;
+    b.disabled = gsc && long;
+    b.title = (gsc && long) ? 'Google Search Console only provides 16 months of data — switch to GA4 for longer ranges' : '';
+  });
+};
+window._meSyncRange();
 
 // Change time range — re-fetches data
 window._meRange = days => {

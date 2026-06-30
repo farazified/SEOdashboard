@@ -490,6 +490,7 @@ canvas        { display: block; width: 100% !important; }
 .me-tab.active, .me-type.active, .me-agg.active { background: var(--acc); color: #fff; }
 .me-src.active { background: var(--blu); color: #fff; }
 .me-range.active { background: var(--bg5); color: var(--tx); }
+.me-range:disabled { opacity: .3; cursor: not-allowed; }
 .me-tab:not(.active):hover, .me-type:not(.active):hover, .me-agg:not(.active):hover,
 .me-src:not(.active):hover, .me-range:not(.active):hover { color: var(--tx2); }
 .me-seg-badge { font-size: 10px; font-family: var(--sans); font-weight: 600;

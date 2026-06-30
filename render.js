@@ -458,9 +458,38 @@ export function renderMetricExplorer() {
     dataset.fill = false;
   }
 
+  // Persistent value labels drawn on each bar / point. Skipped when the chart
+  // is too dense (e.g. daily over a long range) — the hover tooltip still works.
+  const showLabels = values.length <= 32;
+  const meLabels = {
+    id: 'meLabels',
+    afterDatasetsDraw(chart) {
+      if (!showLabels) return;
+      const { ctx, chartArea } = chart;
+      const meta = chart.getDatasetMeta(0);
+      if (!meta || meta.hidden) return;
+      ctx.save();
+      ctx.font = '600 9px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      meta.data.forEach((el, i) => {
+        const v = values[i];
+        if (v == null || (isBar && !v)) return;          // skip empty bars
+        const yRaw = el.y - (isBar ? 4 : 6);
+        const y = Math.max(yRaw, chartArea.top + 9);      // keep inside the plot
+        ctx.fillStyle = multiYear
+          ? (yearColorMap[labelYears[i]] || mc.color)
+          : (isBar ? '#d2d2e2' : mc.color);
+        ctx.fillText(mc.fmt(v), el.x, y);
+      });
+      ctx.restore();
+    },
+  };
+
   S.meChart = new Chart(canvas, {
     type: isBar ? 'bar' : 'line',
     data: { labels, datasets: [dataset] },
+    plugins: [meLabels],
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {

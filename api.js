@@ -169,12 +169,12 @@ function _yearToDateDates() {
   // YTD: Jan 1 – today
   const start    = new Date(yr, 0, 1);
   const end      = new Date(t);
-  // PoP: same period last year
-  const popStart = new Date(yr - 1, 0, 1);
-  const popEnd   = new Date(yr - 1, t.getMonth(), t.getDate());
-  // YoY: same period two years ago
-  const yoyStart = new Date(yr - 2, 0, 1);
-  const yoyEnd   = new Date(yr - 2, t.getMonth(), t.getDate());
+  // PoP: the equal-length period immediately before this one (ends Dec 31 last year)
+  const popEnd   = new Date(start); popEnd.setDate(popEnd.getDate() - 1);
+  const popStart = new Date(popEnd.getTime() - (end.getTime() - start.getTime()));
+  // YoY: the same calendar dates one year ago
+  const yoyStart = new Date(yr - 1, 0, 1);
+  const yoyEnd   = new Date(yr - 1, t.getMonth(), t.getDate());
   const label    = `Year to date · ${fmtD_(start)} – ${fmtD_(end)}`;
   return {
     start: ds(start), end: ds(end),
