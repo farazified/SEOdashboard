@@ -50,14 +50,25 @@ export function signOut() {
 
 // ── BASE REQUEST ──
 
-async function req(url, opts = {}) {
+// GSC's `backendError` (500) and GA4's transient 503s are well-known intermittent
+// failures — Google's docs acknowledge them. On big properties (e.g. Koala AU)
+// where loadGsc fires 9 heavy queries in parallel, one is almost guaranteed to
+// hiccup periodically. Retry 5xx and 429 with exponential backoff so a single
+// flake doesn't blow the whole dashboard load.
+async function req(url, opts = {}, attempt = 0) {
   const r = await fetch(url, {
     ...opts,
     headers: { Authorization: 'Bearer ' + S.token, 'Content-Type': 'application/json' },
   });
   if (r.status === 401) { signOut(); throw new Error('Session expired — please reconnect'); }
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
+  if (r.ok) return r.json();
+  const transient = r.status >= 500 || r.status === 429;
+  if (transient && attempt < 3) {
+    const delay = 400 * Math.pow(2, attempt) + Math.random() * 200;  // 0.4s, 0.8s, 1.6s + jitter
+    await new Promise(res => setTimeout(res, delay));
+    return req(url, opts, attempt + 1);
+  }
+  throw new Error(await r.text());
 }
 
 // ── DATE HELPERS ──
@@ -306,7 +317,7 @@ function _pbDone() {
 // extraFilters is an array of additional filter objects added to every group (e.g. brand notContains).
 // Core builder — takes an explicit pattern + urlList so it can be reused for the
 // global filter (S.urlSelections / url-filter) AND per-segment in loadSegments().
-function _gscGroupsFor(pattern, urlList, cty, extraFilters = []) {
+function _gscGroupsFor(pattern, urlList, cty, extraFilters = [], exclude = null) {
   const cf = cty ? { dimension: 'country', operator: 'equals', expression: cty } : null;
   if (urlList && urlList.length > 0) {
     if (urlList.length === 1) {
@@ -335,18 +346,20 @@ function _gscGroupsFor(pattern, urlList, cty, extraFilters = []) {
     }];
   }
   const pf = pattern ? { dimension: 'page', operator: 'contains', expression: pattern } : null;
-  const f = [...(pf ? [pf] : []), ...(cf ? [cf] : []), ...extraFilters];
+  // "Site − Home": exclude only the root URL (scheme://host with optional trailing slash).
+  const xf = exclude === 'home' ? { dimension: 'page', operator: 'excludingRegex', expression: '^https?://[^/]+/?$' } : null;
+  const f = [...(pf ? [pf] : []), ...(xf ? [xf] : []), ...(cf ? [cf] : []), ...extraFilters];
   return f.length ? [{ filters: f }] : [];
 }
 function _buildGscGroups(uf, cty, extraFilters = []) {
-  return _gscGroupsFor(uf, S.urlSelections, cty, extraFilters);
+  return _gscGroupsFor(uf, S.urlSelections, cty, extraFilters, S.segExclude);
 }
 
 // GA4: returns a pageFilter expression (CONTAINS, EXACT, or FULL_REGEXP).
 // For multiple URLs we use FULL_REGEXP with optional trailing slash — same
 // trailing-slash variation problem as GSC, plus it sidesteps any limits on
 // the size of an orGroup expression list.
-function _ga4PageFilterFor(pattern, urlList) {
+function _ga4PageFilterFor(pattern, urlList, exclude = null) {
   if (urlList && urlList.length > 0) {
     const paths = urlList.map(u =>
       (u.replace(/^https?:\/\/[^/]+/, '') || '/').replace(/\/$/, '') || '/'
@@ -359,10 +372,12 @@ function _ga4PageFilterFor(pattern, urlList) {
     const regex   = '^(?:' + escaped.join('|') + ')/?$';
     return { filter: { fieldName: 'landingPage', stringFilter: { matchType: 'FULL_REGEXP', value: regex }}};
   }
+  // "Site − Home": everything except the homepage landing page ("/").
+  if (exclude === 'home') return { notExpression: { filter: { fieldName: 'landingPage', stringFilter: { matchType: 'EXACT', value: '/' }}}};
   return pattern ? { filter: { fieldName: 'landingPage', stringFilter: { matchType: 'CONTAINS', value: pattern }}} : null;
 }
 function _buildGa4PageFilter(uf) {
-  return _ga4PageFilterFor(uf, S.urlSelections);
+  return _ga4PageFilterFor(uf, S.urlSelections, S.segExclude);
 }
 
 // ── MAIN LOAD ──
@@ -442,7 +457,7 @@ export async function loadGsc(site) {
   // defaults to byProperty aggregation — which only counts impressions where
   // the CANONICAL URL matches the filter, dropping huge chunks of real data.
   // Forcing byPage matches SEOGets and gives accurate per-page totals.
-  const hasPageFilter = !!(uf || S.urlSelections.length);
+  const hasPageFilter = !!(uf || S.urlSelections.length || S.segExclude);
   const aggT = hasPageFilter ? { aggregationType: 'byPage' } : {};
 
   const gscUrl = `${GSC_BASE}/sites/${encodeURIComponent(site)}/searchAnalytics/query`;
@@ -679,8 +694,8 @@ export async function loadSegments() {
 
   // GSC dimensionless aggregate for one segment+period (+ optional extra filters)
   const gscAgg = (seg, s, e, extra=[]) => {
-    const groups = _gscGroupsFor(seg.pattern || '', seg.urlList, cty, extra);
-    const hasPageFilter = !!(seg.pattern || (seg.urlList && seg.urlList.length));
+    const groups = _gscGroupsFor(seg.pattern || '', seg.urlList, cty, extra, seg.exclude);
+    const hasPageFilter = !!(seg.pattern || (seg.urlList && seg.urlList.length) || seg.exclude);
     return req(gscUrl, { method:'POST', body: JSON.stringify({
       startDate:s, endDate:e,
       ...(groups.length ? { dimensionFilterGroups: groups } : {}),
@@ -694,7 +709,7 @@ export async function loadSegments() {
   const ga4Sum = async (seg, s, e, organic=true) => {
     if (!S.selGa4) return { s:0, r:0 };
     const orgF = { filter: { fieldName:'sessionDefaultChannelGroup', stringFilter:{ matchType:'EXACT', value:'Organic Search' }}};
-    const pageF = _ga4PageFilterFor(seg.pattern || '', seg.urlList);
+    const pageF = _ga4PageFilterFor(seg.pattern || '', seg.urlList, seg.exclude);
     const ctyF  = ga4Cty ? { filter:{ fieldName:'country', stringFilter:{ matchType:'EXACT', value:ga4Cty }}} : null;
     const exprs = [...(organic?[orgF]:[]), ...(pageF?[pageF]:[]), ...(ctyF?[ctyF]:[])];
     const dimF  = exprs.length === 0 ? null : exprs.length === 1 ? exprs[0] : { andGroup:{ expressions: exprs } };
@@ -742,7 +757,7 @@ export async function loadSegments() {
 
       return {
         id: seg.id, name: seg.name, color: seg.color,
-        pattern: seg.pattern, urlList: seg.urlList || null,
+        pattern: seg.pattern, urlList: seg.urlList || null, exclude: seg.exclude || null,
         clicks: cl,    clicksPop: fmtD(cl, clPrev),   clicksYoy: fmtD(cl, clYoyV),
         position: pos, posPop: pos&&posPrev ? fmtD(pos, posPrev) : null, posYoy: pos&&posYoyV ? fmtD(pos, posYoyV) : null,
         sessions: sess, sessPop: fmtD(sess, sessP),   sessYoy: fmtD(sess, sessY),
@@ -785,7 +800,7 @@ export async function loadMetricExplorer() {
     const start = new Date(end); start.setDate(start.getDate() - days);
     const gscUrl = `${GSC_BASE}/sites/${encodeURIComponent(S.selGsc)}/searchAnalytics/query`;
     const meGroups = _buildGscGroups(uf, cty, _meBrandFilters());
-    const meHasPageFilter = !!(uf || S.urlSelections.length);
+    const meHasPageFilter = !!(uf || S.urlSelections.length || S.segExclude);
     try {
       const res = await req(gscUrl, { method: 'POST', body: JSON.stringify({
         startDate: ds(start), endDate: ds(end),
