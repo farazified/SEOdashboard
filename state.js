@@ -30,6 +30,8 @@ export const S = {
   // segments breakdown table (null = not yet fetched)
   segmentsData: null,        // [{id,name,color,clicks,sessions,position,revenue,...deltas}]
   segmentsTab:  'all',       // 'all' | 'growing' | 'decaying'
+  // exclusion segments (e.g. whole site minus the homepage). null = off.
+  segExclude:  null,   // null | 'home'
   // url filter selections (exact-match mode)
   urlSelections: [],   // full URLs selected for equals+OR filtering
   pageUrls:      [],   // lightweight page list for autocomplete [{url, clicks}]

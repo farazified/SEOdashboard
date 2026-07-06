@@ -78,6 +78,8 @@ window._signIn = () => {
 window._signOut = () => signOut();
 
 window._loadAll = () => {
+  // A typed URL filter overrides any active exclusion segment.
+  if (document.getElementById('url-filter').value.trim()) S.segExclude = null;
   document.getElementById('url-drop').style.display = 'none';
   syncUrlState(); updateCtxBadge(); loadAll();
 };
@@ -85,6 +87,7 @@ window._loadAll = () => {
 window._clearDrill = () => {
   document.getElementById('url-filter').value = '';
   S.urlSelections = [];
+  S.segExclude = null;
   document.getElementById('url-drop').style.display = 'none';
   syncUrlState(); updateCtxBadge(); loadAll();
 };
@@ -246,6 +249,10 @@ window._setSegmentsTab = t => {
 window._segDrill = id => {
   const seg = (S.segmentsData || []).find(s => s.id === id);
   if (!seg) return;
+  if (seg.exclude) {
+    window._navTo('overview', true);
+    return window._selSegExclude(seg.exclude);
+  }
   if (seg.urlList && seg.urlList.length) {
     S.urlSelections = [...seg.urlList];
     document.getElementById('url-filter').value = '';
@@ -253,6 +260,7 @@ window._segDrill = id => {
     document.getElementById('url-filter').value = seg.pattern || '';
     S.urlSelections = [];
   }
+  S.segExclude = null;
   document.getElementById('url-drop').style.display = 'none';
   window._navTo('overview', true);
   syncUrlState(); updateCtxBadge(); loadAll();
@@ -279,6 +287,7 @@ window._pagesGoPage = n => {
 window._drillPage = url => {
   const path = url.replace(/^https?:\/\/[^/]+/, '');
   document.getElementById('url-filter').value = path;
+  S.segExclude = null;
   window._navTo('overview');
   syncUrlState(); updateCtxBadge(); loadAll();
 };
@@ -404,6 +413,7 @@ window._selClient = id => {
   _applyClient(client);
   // reset URL state for new client
   S.urlSelections = [];
+  S.segExclude = null;
   S.pageUrls = [];
   document.getElementById('url-drop').style.display = 'none';
   document.getElementById('client-drop')?.classList.remove('open');
@@ -632,9 +642,20 @@ function _loadClientSegments() {
 window._selSeg = pat => {
   document.getElementById('url-filter').value = pat;
   S.urlSelections = [];
+  S.segExclude = null;
   document.getElementById('url-drop').style.display = 'none';
   window._closeSegForm();
-  loadAll();
+  syncUrlState(); updateCtxBadge(); loadAll();
+};
+
+// Exclusion segment (e.g. "Site − Home"): sitewide minus a specific area.
+window._selSegExclude = key => {
+  S.segExclude = key;
+  document.getElementById('url-filter').value = '';
+  S.urlSelections = [];
+  document.getElementById('url-drop').style.display = 'none';
+  window._closeSegForm();
+  syncUrlState(); updateCtxBadge(); loadAll();
 };
 
 window._openSegForm = () => {
@@ -761,6 +782,7 @@ window._selSegUrls = id => {
   const seg = S.segments.find(s => s.id === id);
   if (!seg || !seg.urlList) return;
   S.urlSelections = [...seg.urlList];
+  S.segExclude = null;
   // clear the text filter — exact URL list takes over
   document.getElementById('url-filter').value = '';
   document.getElementById('url-drop').style.display = 'none';
@@ -886,6 +908,7 @@ export function syncUrlState() {
   if (S.selGa4)     p.set('ga4',     S.selGa4);
   const uf = document.getElementById('url-filter')?.value.trim();
   if (uf)           p.set('url',     uf);
+  if (S.segExclude) p.set('xseg',    S.segExclude);
   if (S.selCountry) p.set('country', S.selCountry);
   if (S.datePreset) p.set('preset',  S.datePreset);
   else if (S.days !== 30) p.set('days', S.days);
@@ -898,6 +921,7 @@ export function syncUrlState() {
 function restoreUrlState() {
   const p = new URLSearchParams(location.search);
   const uf = p.get('url');       if (uf) { const el = document.getElementById('url-filter'); if (el) el.value = uf; }
+  const xseg = p.get('xseg');    if (xseg) S.segExclude = xseg;
   const days = p.get('days');    if (days && !p.get('preset')) { S.days = +days; }
   const preset = p.get('preset'); if (preset) { S.datePreset = preset; }
   _syncDateUI();
@@ -915,7 +939,7 @@ export function updateCtxBadge() {
   const dateEl = document.getElementById('ctx-date');
   if (!segEl || !dateEl) return;
 
-  segEl.textContent = seg || 'Sitewide';
+  segEl.textContent = seg || (S.segExclude === 'home' ? 'Site − Home' : 'Sitewide');
 
   dateEl.textContent = _dateLabel();
 

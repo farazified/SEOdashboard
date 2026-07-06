@@ -220,12 +220,15 @@ export function renderSegments() {
   container.innerHTML = all.map(seg => {
     // URL-list segment: active when urlSelections matches this segment's list
     const isUrlList = !!seg.urlList;
+    const isExclude = !!seg.exclude;
     let active;
     if (isUrlList) {
       active = S.urlSelections.length === seg.urlList.length &&
                seg.urlList.every(u => S.urlSelections.includes(u));
+    } else if (isExclude) {
+      active = S.segExclude === seg.exclude;
     } else {
-      active = curPat === seg.pattern;
+      active = !S.segExclude && curPat === seg.pattern;
     }
     const del = seg.isCustom
       ? `<span class="seg-x" onclick="window._delSeg('${seg.id}',event)" title="Remove">×</span>`
@@ -236,6 +239,8 @@ export function renderSegments() {
     const cls = `seg-pill${active?' seg-active':''}${isUrlList?' seg-urllist':''}`;
     const handler = isUrlList
       ? `window._selSegUrls('${seg.id}')`
+      : isExclude
+      ? `window._selSegExclude('${seg.exclude}')`
       : `window._selSeg('${seg.pattern.replace(/'/g,"\\'")}')`;
     return `<button class="${cls}" style="--sc:${seg.color}"
       onclick="${handler}">
@@ -347,7 +352,7 @@ export function renderMetricExplorer() {
   const badge = document.getElementById('me-seg-badge');
   if (badge) {
     const uf = document.getElementById('url-filter')?.value.trim();
-    badge.textContent = uf || 'Sitewide';
+    badge.textContent = uf || (S.segExclude === 'home' ? 'Site − Home' : 'Sitewide');
   }
 
   if (!rows.length) {

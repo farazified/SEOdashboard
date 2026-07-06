@@ -17,6 +17,7 @@ export const GA4_ADMIN = 'https://analyticsadmin.googleapis.com/v1alpha';
 // a circular dependency. 'All Pages' has an empty pattern (= sitewide).
 export const BUILT_IN_SEGS = [
   { id:'all',         name:'All Pages',   pattern:'',             color:'var(--tx2)' },
+  { id:'no-home',     name:'Site − Home', exclude:'home',         color:'var(--red)' },
   { id:'collections', name:'Collections', pattern:'/collections', color:'var(--acc)' },
   { id:'products',    name:'Products',    pattern:'/products',    color:'var(--blu)' },
   { id:'blog',        name:'Blog',        pattern:'/blog',        color:'var(--grn)' },
