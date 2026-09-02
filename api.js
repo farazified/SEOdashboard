@@ -394,29 +394,45 @@ export function getCleanUrl() {
 
 // Tell the user how many URLs the current filter is aggregating over. When >1,
 // clicks/sessions/revenue reflect combined data across all matching pages —
-// ideally you're looking at exactly one URL. Uses S.pageUrls (top-500 pages
-// for the current period, loaded lazily); triggers a background fetch if the
-// list isn't cached yet, then re-renders.
-function _updateDrillCount(uf) {
+// ideally you're looking at exactly one URL. Runs a dedicated page-dimension
+// query with the SAME contains filter GSC will apply, so the count reflects
+// reality (the old shortcut of scanning S.pageUrls missed anything outside
+// the top-500 by clicks).
+let _lastCountKey = null;
+async function _updateDrillCount(uf) {
   const el = document.getElementById('drill-count');
   if (!el) return;
   const set = (txt, cls) => { el.textContent = txt; el.className = 'drill-count ' + cls; };
 
   if (S.urlSelections.length > 1) return set(`· exact-match set of ${S.urlSelections.length} URLs`, 'multi');
   if (S.urlSelections.length === 1) return set('· 1 URL', 'single');
-  if (!uf) return set('', '');
+  if (!uf || !S.selGsc) return set('', '');
 
-  if (!S.pageUrls.length) {
-    set('· counting matches…', 'loading');
-    if (S.selGsc) loadPageUrls().then(() => _updateDrillCount(uf));
-    return;
+  set('· counting matches…', 'loading');
+  const { start, end } = getDates();
+  const key = `${S.selGsc}|${start}|${end}|${uf}`;
+  _lastCountKey = key;
+  const gscUrl = `${GSC_BASE}/sites/${encodeURIComponent(S.selGsc)}/searchAnalytics/query`;
+  try {
+    // aggregationType:'byPage' MUST match loadGsc's queries — without it GSC
+    // defaults to byProperty (canonical URL only), so pages that only got
+    // impressions under a non-canonical variant get dropped from this response
+    // even though loadGsc's metrics still count them. Symptom: "0 URLs match"
+    // while the cards clearly show impressions/sessions.
+    const res = await req(gscUrl, { method: 'POST', body: JSON.stringify({
+      startDate: start, endDate: end, dimensions: ['page'], rowLimit: 500,
+      dimensionFilterGroups: [{ filters: [{ dimension: 'page', operator: 'contains', expression: uf }] }],
+      aggregationType: 'byPage',
+    })});
+    if (_lastCountKey !== key) return;   // a newer Analyze has started
+    const n = (res.rows || []).length;
+    const capped = n >= 500;
+    if (n === 0) set('· 0 URLs match this pattern', 'zero');
+    else if (n === 1) set('· matches 1 URL', 'single');
+    else set(`· matches ${n}${capped ? '+' : ''} URLs — data is aggregated`, 'multi');
+  } catch (e) {
+    if (_lastCountKey === key) set('', '');
   }
-  const cleanUf = uf.toLowerCase();
-  const matches = S.pageUrls.filter(p => p.url.toLowerCase().includes(cleanUf)).length;
-  const capped  = S.pageUrls.length >= 500;    // rowLimit:500 in loadPageUrls — could be more
-  if (matches === 0) set('· 0 URLs match this pattern', 'zero');
-  else if (matches === 1) set('· matches 1 URL', 'single');
-  else set(`· matches ${matches}${capped ? '+' : ''} URLs — data is aggregated`, 'multi');
 }
 
 export async function loadAll() {
