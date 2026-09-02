@@ -392,6 +392,33 @@ export function getCleanUrl() {
   return clean;
 }
 
+// Tell the user how many URLs the current filter is aggregating over. When >1,
+// clicks/sessions/revenue reflect combined data across all matching pages —
+// ideally you're looking at exactly one URL. Uses S.pageUrls (top-500 pages
+// for the current period, loaded lazily); triggers a background fetch if the
+// list isn't cached yet, then re-renders.
+function _updateDrillCount(uf) {
+  const el = document.getElementById('drill-count');
+  if (!el) return;
+  const set = (txt, cls) => { el.textContent = txt; el.className = 'drill-count ' + cls; };
+
+  if (S.urlSelections.length > 1) return set(`· exact-match set of ${S.urlSelections.length} URLs`, 'multi');
+  if (S.urlSelections.length === 1) return set('· 1 URL', 'single');
+  if (!uf) return set('', '');
+
+  if (!S.pageUrls.length) {
+    set('· counting matches…', 'loading');
+    if (S.selGsc) loadPageUrls().then(() => _updateDrillCount(uf));
+    return;
+  }
+  const cleanUf = uf.toLowerCase();
+  const matches = S.pageUrls.filter(p => p.url.toLowerCase().includes(cleanUf)).length;
+  const capped  = S.pageUrls.length >= 500;    // rowLimit:500 in loadPageUrls — could be more
+  if (matches === 0) set('· 0 URLs match this pattern', 'zero');
+  else if (matches === 1) set('· matches 1 URL', 'single');
+  else set(`· matches ${matches}${capped ? '+' : ''} URLs — data is aggregated`, 'multi');
+}
+
 export async function loadAll() {
   const uf    = getCleanUrl();
   const dates = getDates();
@@ -408,6 +435,7 @@ export async function loadAll() {
   document.getElementById('drill-lbl').textContent   = displayUrl;
   document.getElementById('btn-clr').style.display   = hasFilter ? 'inline-block' : 'none';
   document.getElementById('err-banner').style.display = 'none';
+  _updateDrillCount(uf);
 
   // show skeletons + start progress bar
   setLoadingSkeletons();
