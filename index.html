@@ -135,35 +135,42 @@
   <div class="app-shell">
 
     <!-- SIDEBAR NAV -->
-    <nav class="sidebar">
+    <nav class="sidebar" id="sidebar">
+      <button class="sidebar-toggle" id="sidebar-toggle" type="button"
+        onclick="window._toggleSidebar()" title="Collapse sidebar"
+        aria-label="Collapse sidebar" aria-expanded="true" aria-controls="sidebar">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M10 3.5 5.5 8 10 12.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
       <div class="snav">
         <div class="snav-section-lbl">Data</div>
-        <button class="snav-item active" data-page="overview" onclick="window._navTo('overview')">
+        <button class="snav-item active" data-page="overview" title="Overview" onclick="window._navTo('overview')">
           <span class="snav-icon">📊</span><span class="snav-label">Overview</span>
         </button>
-        <button class="snav-item" data-page="keywords" onclick="window._navToKeywords()">
+        <button class="snav-item" data-page="keywords" title="Keywords" onclick="window._navToKeywords()">
           <span class="snav-icon">🔑</span><span class="snav-label">Keywords</span>
         </button>
-        <button class="snav-item" data-page="pages" onclick="window._navTo('pages')">
+        <button class="snav-item" data-page="pages" title="Pages" onclick="window._navTo('pages')">
           <span class="snav-icon">📄</span><span class="snav-label">Pages</span>
         </button>
-        <button class="snav-item" data-page="segments" onclick="window._navTo('segments')">
+        <button class="snav-item" data-page="segments" title="Segments" onclick="window._navTo('segments')">
           <span class="snav-icon">📁</span><span class="snav-label">Segments</span>
         </button>
         <div class="snav-div"></div>
         <div class="snav-section-lbl">Intelligence</div>
-        <button class="snav-item" data-page="rank" onclick="window._navTo('rank')">
+        <button class="snav-item" data-page="rank" title="Rank Intelligence" onclick="window._navTo('rank')">
           <span class="snav-icon">🎯</span><span class="snav-label">Rank Intelligence</span>
         </button>
-        <button class="snav-item" data-page="cannibal" onclick="window._navTo('cannibal')">
+        <button class="snav-item" data-page="cannibal" title="Cannibalization" onclick="window._navTo('cannibal')">
           <span class="snav-icon">⚡</span><span class="snav-label">Cannibalization</span>
         </button>
-        <button class="snav-item" data-page="insights" onclick="window._navTo('insights')">
+        <button class="snav-item" data-page="insights" title="Insights" onclick="window._navTo('insights')">
           <span class="snav-icon">💡</span><span class="snav-label">Insights</span>
         </button>
         <div class="snav-div"></div>
         <div class="snav-section-lbl">Tools</div>
-        <button class="snav-item" data-page="explorer" onclick="window._openExplorer()">
+        <button class="snav-item" data-page="explorer" title="Metric Explorer" onclick="window._openExplorer()">
           <span class="snav-icon">📈</span><span class="snav-label">Metric Explorer</span>
         </button>
       </div>
