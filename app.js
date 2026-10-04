@@ -172,6 +172,37 @@ window._selUrlOpt = url => {
   _renderUrlDrop();
 };
 
+// ── DRILL-BAR MATCH PICKER ──
+// When a typed pattern matches several URLs the metrics are aggregated across
+// all of them. The picker lists exactly the URLs that matched so you can narrow
+// to one (exact match, same filter the autocomplete's single-select builds).
+
+window._toggleDrillMatches = () => {
+  const drop = document.getElementById('drill-match-drop');
+  if (!drop || !S.drillMatches.length) return;
+  if (drop.style.display !== 'none') { drop.style.display = 'none'; return; }
+
+  drop.innerHTML = S.drillMatches.map(m => {
+    const path = (m.url.replace(/^https?:\/\/[^/]+/, '') || '/')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const arg  = m.url.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const cur  = S.urlSelections.length === 1 && S.urlSelections[0] === m.url;
+    return `<div class="url-opt${cur ? ' selected' : ''}" onclick="window._pickDrillMatch('${arg}')">
+      <span class="url-opt-path">${path}</span>
+      <span class="url-opt-clicks">${fmt(m.clicks)}</span>
+    </div>`;
+  }).join('');
+  drop.style.display = '';
+};
+
+window._pickDrillMatch = url => {
+  document.getElementById('drill-match-drop').style.display = 'none';
+  document.getElementById('url-filter').value = url.replace(/^https?:\/\/[^/]+/, '');
+  S.urlSelections = [url];
+  S.segExclude = null;
+  syncUrlState(); updateCtxBadge(); loadAll();
+};
+
 window._clearUrlSel = () => {
   S.urlSelections = [];
   _renderUrlDrop();
@@ -1063,6 +1094,12 @@ async function showApp() {
 
 // close floating dropdowns when clicking outside
 document.addEventListener('click', e => {
+  // drill-bar match picker
+  const mdrop = document.getElementById('drill-match-drop');
+  const mbtn  = document.getElementById('drill-count');
+  if (mdrop && mdrop.style.display !== 'none' && !mdrop.contains(e.target) && e.target !== mbtn) {
+    mdrop.style.display = 'none';
+  }
   // col-menu
   const menu = document.getElementById('col-menu');
   const btn  = document.getElementById('btn-cols');

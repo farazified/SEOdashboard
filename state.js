@@ -35,6 +35,9 @@ export const S = {
   // url filter selections (exact-match mode)
   urlSelections: [],   // full URLs selected for equals+OR filtering
   pageUrls:      [],   // lightweight page list for autocomplete [{url, clicks}]
+  // URLs the current contains-filter is aggregating over, when >1 — lets the
+  // drill bar offer a picker so you can narrow to exactly one. [{url, clicks}]
+  drillMatches:  [],
   // metric explorer (independent section)
   meSource:    'gsc',     // 'gsc' | 'ga4'
   meDays:      500,       // explorer time range (16 months)

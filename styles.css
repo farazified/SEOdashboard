@@ -213,8 +213,12 @@ body { background: var(--bg); color: var(--tx); font-family: var(--body); min-he
 /* drill bar */
 .drill-bar  { background: linear-gradient(135deg,rgba(124,109,250,.1),rgba(124,109,250,.04)); border: 1px solid rgba(124,109,250,.22); border-radius: 10px; padding: 10px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
 .drill-tag  { font-size: 10px; color: var(--tx3); text-transform: uppercase; letter-spacing: 1px; font-family: var(--sans); font-weight: 600; }
-.drill-lbl  { font-size: 12px; font-family: 'Courier New', monospace; color: var(--acc-l); }
-.drill-count { font-size: 11px; font-family: var(--sans); font-weight: 500; margin-left: 4px; flex: 1; }
+.drill-lbl  { font-size: 12px; font-family: 'Courier New', monospace; color: var(--acc-l); flex: 1 1 auto; min-width: 40px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drill-count-wrap { position: relative; flex: 0 0 auto; display: flex; align-items: center; min-width: 0; }
+.drill-count { font-size: 11px; font-family: var(--sans); font-weight: 500; margin-left: 4px; white-space: nowrap; }
+.drill-count.picker { cursor: pointer; border-bottom: 1px dashed currentColor; }
+.drill-count.picker:hover { opacity: .8; }
+.drill-match-drop { left: auto; right: 0; min-width: 320px; max-width: 560px; }
 .drill-count.single  { color: var(--tx3); }
 .drill-count.multi   { color: var(--amb); font-weight: 600; }
 .drill-count.zero    { color: var(--red); }

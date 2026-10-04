@@ -402,10 +402,29 @@ let _lastCountKey = null;
 async function _updateDrillCount(uf) {
   const el = document.getElementById('drill-count');
   if (!el) return;
-  const set = (txt, cls) => { el.textContent = txt; el.className = 'drill-count ' + cls; };
+  const set = (txt, cls, matches) => {
+    el.textContent = txt;
+    const next = matches || [];
+    // Only tear the picker down when the match list actually changed — a repeat
+    // render of the same state must not close a dropdown the user just opened.
+    const same = next.length === S.drillMatches.length &&
+                 next.every((m, i) => m.url === S.drillMatches[i].url);
+    S.drillMatches = next;
+    el.className = 'drill-count ' + cls + (next.length ? ' picker' : '');
+    const drop = document.getElementById('drill-match-drop');
+    if (drop && !same) { drop.style.display = 'none'; drop.innerHTML = ''; }
+  };
 
+  // Keep the picker alive after narrowing to one of the matches, so you can
+  // switch to a sibling URL without re-typing the pattern.
+  const prior = S.drillMatches;
   if (S.urlSelections.length > 1) return set(`· exact-match set of ${S.urlSelections.length} URLs`, 'multi');
-  if (S.urlSelections.length === 1) return set('· 1 URL', 'single');
+  if (S.urlSelections.length === 1) {
+    const sibling = prior.length > 1 && prior.some(m => m.url === S.urlSelections[0]);
+    return sibling
+      ? set(`· 1 of ${prior.length} matching URLs · switch ▾`, 'single', prior)
+      : set('· 1 URL', 'single');
+  }
   if (!uf || !S.selGsc) return set('', '');
 
   set('· counting matches…', 'loading');
@@ -425,11 +444,15 @@ async function _updateDrillCount(uf) {
       aggregationType: 'byPage',
     })});
     if (_lastCountKey !== key) return;   // a newer Analyze has started
-    const n = (res.rows || []).length;
+    const rows = res.rows || [];
+    const n = rows.length;
     const capped = n >= 500;
     if (n === 0) set('· 0 URLs match this pattern', 'zero');
     else if (n === 1) set('· matches 1 URL', 'single');
-    else set(`· matches ${n}${capped ? '+' : ''} URLs — data is aggregated`, 'multi');
+    else set(
+      `· matches ${n}${capped ? '+' : ''} URLs — aggregated · pick one ▾`, 'multi',
+      rows.map(r => ({ url: r.keys[0], clicks: r.clicks || 0 })),
+    );
   } catch (e) {
     if (_lastCountKey === key) set('', '');
   }
