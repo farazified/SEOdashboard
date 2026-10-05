@@ -280,12 +280,14 @@
 
         <!-- drill bar -->
         <div id="drill-bar" style="display:none" class="drill-bar">
-          <span class="drill-tag">Drilling into</span>
-          <span id="drill-lbl" class="drill-lbl"></span>
-          <span class="drill-count-wrap">
+          <!-- match count sits first: when a pattern is aggregating several URLs
+               that is the first thing you need to know about these numbers. -->
+          <span class="drill-count-wrap" id="drill-count-wrap">
             <span id="drill-count" class="drill-count" onclick="window._toggleDrillMatches()"></span>
             <div id="drill-match-drop" class="url-drop drill-match-drop" style="display:none"></div>
           </span>
+          <span class="drill-tag">Drilling into</span>
+          <span id="drill-lbl" class="drill-lbl"></span>
           <button class="drill-cls" onclick="window._clearDrill()">✕ Back to sitewide</button>
         </div>
 

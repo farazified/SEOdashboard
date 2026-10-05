@@ -398,6 +398,26 @@ export function getCleanUrl() {
 // query with the SAME contains filter GSC will apply, so the count reflects
 // reality (the old shortcut of scanning S.pageUrls missed anything outside
 // the top-500 by clicks).
+// The URLs a contains-pattern actually matches, newest query every call so the
+// picker can rebuild its list on demand (state from an earlier Analyze may be
+// gone — e.g. the count request failed, or the page was reloaded).
+// aggregationType:'byPage' MUST match loadGsc's queries — without it GSC
+// defaults to byProperty (canonical URL only), so pages that only got
+// impressions under a non-canonical variant get dropped from this response
+// even though loadGsc's metrics still count them. Symptom: "0 URLs match"
+// while the cards clearly show impressions/sessions.
+export async function fetchDrillMatches(uf) {
+  if (!uf || !S.selGsc) return [];
+  const { start, end } = getDates();
+  const gscUrl = `${GSC_BASE}/sites/${encodeURIComponent(S.selGsc)}/searchAnalytics/query`;
+  const res = await req(gscUrl, { method: 'POST', body: JSON.stringify({
+    startDate: start, endDate: end, dimensions: ['page'], rowLimit: 500,
+    dimensionFilterGroups: [{ filters: [{ dimension: 'page', operator: 'contains', expression: uf }] }],
+    aggregationType: 'byPage',
+  })});
+  return (res.rows || []).map(r => ({ url: r.keys[0], clicks: r.clicks || 0 }));
+}
+
 let _lastCountKey = null;
 async function _updateDrillCount(uf) {
   const el = document.getElementById('drill-count');
@@ -411,6 +431,9 @@ async function _updateDrillCount(uf) {
                  next.every((m, i) => m.url === S.drillMatches[i].url);
     S.drillMatches = next;
     el.className = 'drill-count ' + cls + (next.length ? ' picker' : '');
+    // Sits left of "Drilling into" — collapse it when empty so it leaves no gap.
+    const wrap = document.getElementById('drill-count-wrap');
+    if (wrap) wrap.style.display = txt ? 'flex' : 'none';
     const drop = document.getElementById('drill-match-drop');
     if (drop && !same) { drop.style.display = 'none'; drop.innerHTML = ''; }
   };
@@ -431,28 +454,14 @@ async function _updateDrillCount(uf) {
   const { start, end } = getDates();
   const key = `${S.selGsc}|${start}|${end}|${uf}`;
   _lastCountKey = key;
-  const gscUrl = `${GSC_BASE}/sites/${encodeURIComponent(S.selGsc)}/searchAnalytics/query`;
   try {
-    // aggregationType:'byPage' MUST match loadGsc's queries — without it GSC
-    // defaults to byProperty (canonical URL only), so pages that only got
-    // impressions under a non-canonical variant get dropped from this response
-    // even though loadGsc's metrics still count them. Symptom: "0 URLs match"
-    // while the cards clearly show impressions/sessions.
-    const res = await req(gscUrl, { method: 'POST', body: JSON.stringify({
-      startDate: start, endDate: end, dimensions: ['page'], rowLimit: 500,
-      dimensionFilterGroups: [{ filters: [{ dimension: 'page', operator: 'contains', expression: uf }] }],
-      aggregationType: 'byPage',
-    })});
+    const rows = await fetchDrillMatches(uf);
     if (_lastCountKey !== key) return;   // a newer Analyze has started
-    const rows = res.rows || [];
     const n = rows.length;
     const capped = n >= 500;
     if (n === 0) set('· 0 URLs match this pattern', 'zero');
     else if (n === 1) set('· matches 1 URL', 'single');
-    else set(
-      `· matches ${n}${capped ? '+' : ''} URLs — aggregated · pick one ▾`, 'multi',
-      rows.map(r => ({ url: r.keys[0], clicks: r.clicks || 0 })),
-    );
+    else set(`· matches ${n}${capped ? '+' : ''} URLs — aggregated · pick one ▾`, 'multi', rows);
   } catch (e) {
     if (_lastCountKey === key) set('', '');
   }

@@ -2,7 +2,7 @@
 
 import { CLIENT_ID, COUNTRIES } from './config.js';
 import { S } from './state.js';
-import { doOAuth, handleOAuthRedirect, signOut, loadGscProps, loadGa4Props, loadAll, loadMetricExplorer, loadPages, loadCannibalization, loadSegments, loadPageUrls, fmt } from './api.js';
+import { doOAuth, handleOAuthRedirect, signOut, loadGscProps, loadGa4Props, loadAll, loadMetricExplorer, loadPages, loadCannibalization, loadSegments, loadPageUrls, fetchDrillMatches, getCleanUrl, fmt } from './api.js';
 import { renderAll, renderKeywords, renderCountryOpts,
          sortQ, exportCsv, showKwChart,
          recalcFiltered, updateDeltas,
@@ -177,10 +177,25 @@ window._selUrlOpt = url => {
 // all of them. The picker lists exactly the URLs that matched so you can narrow
 // to one (exact match, same filter the autocomplete's single-select builds).
 
-window._toggleDrillMatches = () => {
+window._toggleDrillMatches = async () => {
   const drop = document.getElementById('drill-match-drop');
-  if (!drop || !S.drillMatches.length) return;
+  if (!drop) return;
+  // A hand-picked URL-list selection isn't a pattern match — nothing to narrow.
+  if (S.urlSelections.length > 1) return;
   if (drop.style.display !== 'none') { drop.style.display = 'none'; return; }
+
+  // Rebuild the list if we don't have it — the count query may have failed, or
+  // this may be a fresh page load that restored the pattern from the URL.
+  if (!S.drillMatches.length) {
+    drop.innerHTML = '<div class="url-opt url-opt-msg">Finding matching URLs…</div>';
+    drop.style.display = '';
+    try { S.drillMatches = await fetchDrillMatches(getCleanUrl()); } catch { S.drillMatches = []; }
+    if (drop.style.display === 'none') return;          // closed while loading
+    if (!S.drillMatches.length) {
+      drop.innerHTML = '<div class="url-opt url-opt-msg">No matching URLs — re-run Analyze</div>';
+      return;
+    }
+  }
 
   drop.innerHTML = S.drillMatches.map(m => {
     const path = (m.url.replace(/^https?:\/\/[^/]+/, '') || '/')
