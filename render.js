@@ -306,15 +306,19 @@ const MON_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Oct',
 const MON_FULL  = ['January','February','March','April','May','June','July','August',
                    'September','October','November','December'];
 
+// `fmt` is the full form, used in tooltips and wherever there is room. `fmtC`
+// is the compact one the bar labels fall back to when the bars get narrow —
+// 36 months of "$368.8K" will not fit, 36 of "$369K" will.
+const _k = v => v>=1e6 ? (v/1e6).toFixed(1)+'M' : v>=1e3 ? Math.round(v/1e3)+'K' : String(Math.round(v));
 const ME_CFG = {
   // GSC
-  clicks:      { label:'Clicks',       color:'#7c6dfa', inv:false, src:'gsc', fmt: v => Math.round(v).toLocaleString() },
-  impressions: { label:'Impressions',  color:'#5b9cf6', inv:false, src:'gsc', fmt: v => Math.round(v).toLocaleString() },
+  clicks:      { label:'Clicks',       color:'#7c6dfa', inv:false, src:'gsc', fmt: v => Math.round(v).toLocaleString(), fmtC: _k },
+  impressions: { label:'Impressions',  color:'#5b9cf6', inv:false, src:'gsc', fmt: v => Math.round(v).toLocaleString(), fmtC: _k },
   position:    { label:'Avg Position', color:'#f5a623', inv:true,  src:'gsc', fmt: v => v.toFixed(1) },
-  ctr:         { label:'CTR',          color:'#3ecf8e', inv:false, src:'gsc', fmt: v => (v*100).toFixed(2)+'%' },
+  ctr:         { label:'CTR',          color:'#3ecf8e', inv:false, src:'gsc', fmt: v => (v*100).toFixed(2)+'%', fmtC: v => (v*100).toFixed(1)+'%' },
   // GA4
-  sessions:    { label:'Sessions',     color:'#3ecf8e', inv:false, src:'ga4', fmt: v => Math.round(v).toLocaleString() },
-  revenue:     { label:'Revenue',      color:'#f5a623', inv:false, src:'ga4', fmt: v => '$'+(v>=1e6?(v/1e6).toFixed(2)+'M':v>=1e3?(v/1e3).toFixed(1)+'K':v.toFixed(2)) },
+  sessions:    { label:'Sessions',     color:'#3ecf8e', inv:false, src:'ga4', fmt: v => Math.round(v).toLocaleString(), fmtC: _k },
+  revenue:     { label:'Revenue',      color:'#f5a623', inv:false, src:'ga4', fmt: v => '$'+(v>=1e6?(v/1e6).toFixed(2)+'M':v>=1e3?(v/1e3).toFixed(1)+'K':v.toFixed(2)), fmtC: v => '$'+_k(v) },
 };
 
 function _meGetVal(r, met) {
@@ -478,18 +482,36 @@ export function renderMetricExplorer() {
     dataset.fill = false;
   }
 
-  // Persistent value labels drawn on each bar / point. Skipped when the chart
-  // is too dense (e.g. daily over a long range) — the hover tooltip still works.
-  const showLabels = values.length <= 32;
+  // Persistent value labels drawn on each bar / point. Rather than a flat cap
+  // on the number of points, the label takes the densest form that actually
+  // fits the space one bar gets: full, then compact, then compact at 8px, then
+  // none at all (the hover tooltip still has the number). That is what lets 36
+  // months keep their labels where a fixed cap dropped them.
   const meLabels = {
     id: 'meLabels',
     afterDatasetsDraw(chart) {
-      if (!showLabels) return;
       const { ctx, chartArea } = chart;
       const meta = chart.getDatasetMeta(0);
-      if (!meta || meta.hidden) return;
+      if (!meta || meta.hidden || !values.length) return;
       ctx.save();
-      ctx.font = '600 9px Inter, system-ui, sans-serif';
+
+      const slot    = chartArea.width / values.length;
+      const shown   = values.filter(v => v != null && !(isBar && !v));
+      const fits = (size, f) => {
+        ctx.font = `600 ${size}px Inter, system-ui, sans-serif`;
+        return shown.every(v => ctx.measureText(f(v)).width <= slot - 3);
+      };
+      const compact = mc.fmtC || mc.fmt;
+      let size = 9, fmtFn = mc.fmt;
+      if (!fits(9, mc.fmt)) {
+        fmtFn = compact;
+        if (!fits(9, compact)) {
+          size = 8;
+          if (!fits(8, compact)) { ctx.restore(); return; }
+        }
+      }
+
+      ctx.font = `600 ${size}px Inter, system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       meta.data.forEach((el, i) => {
@@ -500,7 +522,7 @@ export function renderMetricExplorer() {
         ctx.fillStyle = multiYear
           ? (yearColorMap[labelYears[i]] || mc.color)
           : (isBar ? '#d2d2e2' : mc.color);
-        ctx.fillText(mc.fmt(v), el.x, y);
+        ctx.fillText(fmtFn(v), el.x, y);
       });
       ctx.restore();
     },
