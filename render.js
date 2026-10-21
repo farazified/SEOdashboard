@@ -302,6 +302,10 @@ export function renderSegmentsTable() {
 
 // ── METRIC EXPLORER ──
 
+const MON_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec'];
+const MON_FULL  = ['January','February','March','April','May','June','July','August',
+                   'September','October','November','December'];
+
 const ME_CFG = {
   // GSC
   clicks:      { label:'Clicks',       color:'#7c6dfa', inv:false, src:'gsc', fmt: v => Math.round(v).toLocaleString() },
@@ -376,12 +380,13 @@ export function renderMetricExplorer() {
   const typ = S.meType || 'line';
   const mc  = ME_CFG[met];
 
-  let labels = [], values = [], labelYears = [];
+  let labels = [], values = [], labelYears = [], labelsFull = [];
 
   if (agg === 'daily') {
     rows.forEach(r => {
       const d = new Date(r.date + 'T00:00:00');
       labels.push(d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }));
+      labelsFull.push(`${d.getDate()} ${MON_FULL[d.getMonth()]} ${d.getFullYear()}`);
       values.push(_meGetVal(r, met));
       labelYears.push(d.getFullYear());
     });
@@ -395,15 +400,25 @@ export function renderMetricExplorer() {
     Object.entries(grp).forEach(([k, rs]) => {
       const d = new Date(k + 'T00:00:00');
       labels.push(d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }));
+      labelsFull.push(`Week of ${d.getDate()} ${MON_FULL[d.getMonth()]} ${d.getFullYear()}`);
       values.push(_meAggRows(rs, met));
       labelYears.push(d.getFullYear());
     });
 
   } else {
     const grp = _groupBy(rows, r => r.date.slice(0,7));
-    Object.entries(grp).forEach(([k, rs]) => {
-      const d = new Date(k + '-02T00:00:00');
-      labels.push(d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }));
+    Object.entries(grp).forEach(([k, rs], i) => {
+      const d  = new Date(k + '-02T00:00:00');
+      const mo = d.getMonth();
+      // Every month is named, so a 36-month run reads month by month instead of
+      // every third tick. January — and the first bar, whatever month it is —
+      // also carries the year, which anchors the run without printing the year
+      // thirty-six times. The year is on the colour legend too.
+      // The year goes on a second line rather than beside the month: a wider
+      // "Sept 25" tick is what makes Chart.js give up and tilt the whole axis.
+      const anchor = mo === 0 || i === 0;
+      labels.push(anchor ? [MON_SHORT[mo], String(d.getFullYear())] : [MON_SHORT[mo]]);
+      labelsFull.push(`${MON_FULL[mo]} ${d.getFullYear()}`);
       values.push(_meAggRows(rs, met));
       labelYears.push(d.getFullYear());
     });
@@ -505,6 +520,7 @@ export function renderMetricExplorer() {
           titleColor:'#9090a8', bodyColor:'#e8e8f0',
           titleFont:{family:'Inter',size:10}, bodyFont:{family:'Inter',size:11}, padding:10,
           callbacks: {
+            title: ctx => labelsFull[ctx[0]?.dataIndex] ?? ctx[0]?.label ?? '',
             label: ctx => {
               const yr = multiYear ? ` (${labelYears[ctx.dataIndex]})` : '';
               return ` ${mc.label}${yr}: ${mc.fmt(ctx.parsed.y)}`;
@@ -513,7 +529,18 @@ export function renderMetricExplorer() {
         },
       },
       scales: {
-        x: { grid:{color:'rgba(255,255,255,.04)',drawBorder:false}, ticks:{color:'#55556a',font:{size:9},maxTicksLimit:14} },
+        x: {
+          grid:{color:'rgba(255,255,255,.04)',drawBorder:false},
+          ticks:{
+            color:'#55556a', font:{size:9},
+            // Monthly: every month gets its tick. maxRotation lets Chart.js
+            // tilt them if the window is too narrow to lay them out flat,
+            // rather than dropping two out of three.
+            ...(agg === 'monthly'
+              ? { autoSkip:false, maxRotation:45, minRotation:0 }
+              : { maxTicksLimit:14 }),
+          },
+        },
         y: {
           reverse: mc.inv,
           grid:{color:'rgba(255,255,255,.04)',drawBorder:false},
