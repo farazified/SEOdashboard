@@ -781,20 +781,35 @@ canvas        { display: block; width: 100% !important; }
 .ch-sec-ttl:first-of-type { margin-top:4px; }
 
 .ch-panel .kw-scroll { overflow-x:auto; }
-.ch-table { table-layout:fixed; width:100%; min-width:720px; }
+.ch-table { table-layout:fixed; width:100%; }
 .ch-table th, .ch-table td {
   height:30px; padding:0 10px; white-space:nowrap;
   font-variant-numeric:tabular-nums;
 }
-.ch-table th { text-transform:uppercase; font-size:10px; letter-spacing:.05em; }
+.ch-table th { text-transform:uppercase; font-size:10px; letter-spacing:.05em; cursor:default; }
+.ch-table th:hover { color:var(--tx3); }
 .ch-table th.ch-num { text-align:right; }
 .ch-table .ch-ch-col {
   width:160px; text-align:left;
   overflow:hidden; text-overflow:ellipsis;
+  /* Pinned: with 16 months on screen the channel name must stay readable. */
+  position:sticky; left:0; z-index:3;
+  background:var(--bg2); box-shadow:1px 0 0 var(--b1);
 }
-.ch-table .ch-cell { width:94px; text-align:right; font-size:12px; color:var(--tx); }
+.ch-table thead .ch-ch-col,
+.ch-table tfoot .ch-ch-col { background:var(--bg3); }
+.ch-table .sticky-head th.ch-ch-col { z-index:11; }
+
+/* The heat fill is painted on the cell background, so a plain row-hover
+   background would be overridden — layer it with an inset shadow instead. */
+.ch-table tbody tr:hover td { box-shadow:inset 0 0 0 999px rgba(255,255,255,.03); }
+.ch-table tbody tr:hover td.ch-ch-col { box-shadow:1px 0 0 var(--b1), inset 0 0 0 999px rgba(255,255,255,.03); }
+.ch-table .ch-cell {
+  width:var(--ch-col,94px); text-align:right; font-size:12px; color:var(--tx);
+  overflow:hidden; text-overflow:ellipsis;
+}
 .ch-table .ch-zero { color:var(--tx3); }
-.ch-table[data-metric] .ch-tot-col { width:120px; font-weight:600; }
+.ch-table[data-metric] .ch-tot-col { width:var(--ch-tot,120px); font-weight:600; }
 
 .ch-table[data-metric="sessions"] .ch-cell {
   background:color-mix(in srgb, var(--acc) calc(var(--heat,0) * 0.45%), transparent);

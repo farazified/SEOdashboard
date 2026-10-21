@@ -1433,6 +1433,13 @@ function chTable(metric) {
   const d        = S.channelsData;
   const isRev    = metric === 'revenue';
   const months   = d.months;
+  // Revenue runs to $1,395,990 — it needs more room per cell than a session
+  // count does. The table is sized from its columns and allowed to overflow
+  // the panel: at 16 months it scrolls sideways rather than squeezing the
+  // figures into each other.
+  const colW     = isRev ? 112 : 94;
+  const totW     = isRev ? 140 : 120;
+  const minW     = 160 + months.length * colW + totW;
   const colTot   = isRev ? d.totRevenue  : d.totSessions;
   const grand    = isRev ? d.grandRevenue : d.grandSessions;
   const fmtFn    = isRev ? chMoney : chNum;
@@ -1470,7 +1477,8 @@ function chTable(metric) {
   </tr>`;
 
   return `<div class="kw-panel ch-panel"><div class="kw-scroll">
-    <table class="dt ch-table" data-metric="${metric}">
+    <table class="dt ch-table" data-metric="${metric}"
+           style="--ch-col:${colW}px;--ch-tot:${totW}px;min-width:${minW}px">
       <thead class="sticky-head">${head}</thead>
       <tbody>${body}</tbody>
       <tfoot>${foot}</tfoot>
