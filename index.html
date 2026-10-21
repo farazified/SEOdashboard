@@ -157,6 +157,9 @@
         <button class="snav-item" data-page="segments" title="Segments" onclick="window._navTo('segments')">
           <span class="snav-icon">📁</span><span class="snav-label">Segments</span>
         </button>
+        <button class="snav-item" data-page="channels" title="Channels" onclick="window._navTo('channels')">
+          <span class="snav-icon">📡</span><span class="snav-label">Channels</span>
+        </button>
         <div class="snav-div"></div>
         <div class="snav-section-lbl">Intelligence</div>
         <button class="snav-item" data-page="rank" title="Rank Intelligence" onclick="window._navTo('rank')">
@@ -554,6 +557,34 @@
         </div>
 
       </div><!-- /page-segments -->
+
+      <!-- ─────────────────────────────────────
+           PAGE: CHANNELS (GA4 channel × month pivot)
+      ───────────────────────────────────── -->
+      <div class="page-view" id="page-channels" style="display:none">
+
+        <div class="pv-hdr">
+          <div>
+            <div class="pv-ttl">📡 Channels</div>
+            <div class="pv-sub">Sessions &amp; revenue per traffic source, month by month · <span id="ch-range-lbl"></span>
+              <span class="pv-note">· all traffic, not organic only · respects the country filter</span>
+            </div>
+          </div>
+          <div class="ch-rail">
+            <button class="ch-mbtn active" data-m="6"  onclick="window._setChMonths(6)">6M</button>
+            <button class="ch-mbtn" data-m="12" onclick="window._setChMonths(12)">12M</button>
+            <button class="ch-mbtn" data-m="16" onclick="window._setChMonths(16)">16M</button>
+            <button class="btn-csv" onclick="window._exportChannelsCsv()">↓ CSV</button>
+          </div>
+        </div>
+
+        <div class="ch-sec-ttl">Sessions per traffic source</div>
+        <div id="ch-sessions"></div>
+
+        <div class="ch-sec-ttl">Revenue per traffic source</div>
+        <div id="ch-revenue"></div>
+
+      </div><!-- /page-channels -->
 
       <!-- ─────────────────────────────────────
            PAGE: RANK INTELLIGENCE

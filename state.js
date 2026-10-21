@@ -54,6 +54,9 @@ export const S = {
   pagesPage:    1,
   // cannibalization (null = not yet fetched)
   cannibalData: null,
+  // channels pivot — channel x month, all traffic (null = not yet fetched)
+  chMonths:     6,        // how many months the pivot spans
+  channelsData: null,
 };
 
 export const METRICS = {};

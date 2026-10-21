@@ -2,14 +2,15 @@
 
 import { CLIENT_ID, COUNTRIES } from './config.js';
 import { S } from './state.js';
-import { doOAuth, handleOAuthRedirect, signOut, loadGscProps, loadGa4Props, loadAll, loadMetricExplorer, loadPages, loadCannibalization, loadSegments, loadPageUrls, fetchDrillMatches, getCleanUrl, fmt } from './api.js';
+import { doOAuth, handleOAuthRedirect, signOut, loadGscProps, loadGa4Props, loadAll, loadMetricExplorer, loadPages, loadCannibalization, loadSegments, loadChannels, loadPageUrls, fetchDrillMatches, getCleanUrl, fmt } from './api.js';
 import { renderAll, renderKeywords, renderCountryOpts,
          sortQ, exportCsv, showKwChart,
          recalcFiltered, updateDeltas,
          renderSegments, renderSegmentsTable, renderMetricExplorer, renderGa4Cards,
          applyColVisibility,
          renderClientOpts, renderClientMgr, renderMgrCountryOpts,
-         renderPages, renderRankIntelligence, renderCannibalization, renderInsights } from './render.js';
+         renderPages, renderRankIntelligence, renderCannibalization, renderInsights,
+         renderChannels } from './render.js';
 
 // ── EXPOSED TO HTML onclick attributes ──
 // Must be on window because ES modules are scoped
@@ -34,6 +35,7 @@ window._navTo = (page, skipLoad = false) => {
     if (page === 'pages')    { if (S.pagesData === null) loadPages(); else renderPages(); }
     if (page === 'cannibal') { if (S.cannibalData === null) loadCannibalization(); else renderCannibalization(); }
     if (page === 'segments') { if (S.segmentsData === null) loadSegments(); else renderSegmentsTable(); }
+    if (page === 'channels') { if (S.channelsData === null) { renderChannels(); loadChannels(); } else renderChannels(); }
     if (page === 'rank')     renderRankIntelligence();
     if (page === 'insights') renderInsights();
   }
@@ -431,6 +433,53 @@ window._toggleBranded = () => {
     if (S.page === 'cannibal') renderCannibalization();
     loadCannibalization();
   }
+  // Channels: country filter applies (date range is the pivot's own)
+  if (S.channelsData !== null) {
+    S.channelsData = null;
+    if (S.page === 'channels') renderChannels();
+    loadChannels();
+  }
+};
+
+// ── CHANNELS ──
+
+window._setChMonths = (n) => {
+  if (S.chMonths === n) return;
+  S.chMonths = n;
+  S.channelsData = null;
+  document.querySelectorAll('#page-channels .ch-mbtn')
+    .forEach(b => b.classList.toggle('active', +b.dataset.m === n));
+  renderChannels();
+  loadChannels();
+};
+
+window._exportChannelsCsv = () => {
+  const d = S.channelsData;
+  if (!d || !d.months) return;
+  const lines = [];
+  [['Sessions', 'sessions', 'totSessions'], ['Revenue', 'revenue', 'totRevenue']].forEach(([ttl, key, totKey]) => {
+    lines.push(`${ttl} per traffic source`);
+    lines.push(['Channel', ...d.months.map(m => m.label), 'Grand total'].join(','));
+    d.rows.slice()
+      .sort((a, b) => b[totKey] - a[totKey])
+      .filter(r => r[totKey] > 0)
+      .forEach(r => {
+        const vals = d.months.map(m => (r[key][m.ym] || 0).toFixed(key === 'revenue' ? 2 : 0));
+        lines.push([`"${r.channel.replace(/"/g, '""')}"`, ...vals, r[totKey].toFixed(key === 'revenue' ? 2 : 0)].join(','));
+      });
+    const colTot = key === 'revenue' ? d.totRevenue : d.totSessions;
+    const grand  = key === 'revenue' ? d.grandRevenue : d.grandSessions;
+    lines.push(['Grand total',
+      ...d.months.map(m => (colTot[m.ym] || 0).toFixed(key === 'revenue' ? 2 : 0)),
+      grand.toFixed(key === 'revenue' ? 2 : 0)].join(','));
+    lines.push('');
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `channels-${S.chMonths}m.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 };
 
 // ── CLIENT PROFILES ──

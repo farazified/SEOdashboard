@@ -759,3 +759,61 @@ canvas        { display: block; width: 100% !important; }
 .me-year-legend   { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 5px 2px 2px; }
 .me-year-chip     { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-family: var(--sans); font-weight: 600; color: var(--tx2); background: var(--bg3); border: 1px solid var(--b1); border-radius: 20px; padding: 2px 9px 2px 6px; }
 .me-year-dot      { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── CHANNELS PIVOT ───────────────────────────────────────────────
+   Channel × month tables. Cells are tinted by their share of the
+   month's column total — absolute, so the same cell reads the same
+   colour whatever else is on screen. Accent = sessions, green = revenue. */
+.ch-rail { display:flex; align-items:center; gap:6px; }
+.ch-mbtn {
+  height:32px; min-width:48px; padding:0 10px;
+  background:var(--bg3); border:1px solid var(--b2); border-radius:6px;
+  color:var(--tx2); font:500 12px var(--body); cursor:pointer;
+}
+.ch-mbtn:hover  { background:var(--bg4); color:var(--tx); }
+.ch-mbtn.active { background:var(--acc-g); border-color:var(--acc); color:var(--acc-l); }
+.ch-rail .btn-csv { height:32px; min-width:48px; }
+
+.ch-sec-ttl {
+  margin:18px 0 8px; font:600 13px var(--sans); color:var(--tx2);
+  text-transform:uppercase; letter-spacing:.06em;
+}
+.ch-sec-ttl:first-of-type { margin-top:4px; }
+
+.ch-panel .kw-scroll { overflow-x:auto; }
+.ch-table { table-layout:fixed; width:100%; min-width:720px; }
+.ch-table th, .ch-table td {
+  height:30px; padding:0 10px; white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.ch-table th { text-transform:uppercase; font-size:10px; letter-spacing:.05em; }
+.ch-table th.ch-num { text-align:right; }
+.ch-table .ch-ch-col {
+  width:160px; text-align:left;
+  overflow:hidden; text-overflow:ellipsis;
+}
+.ch-table .ch-cell { width:94px; text-align:right; font-size:12px; color:var(--tx); }
+.ch-table .ch-zero { color:var(--tx3); }
+.ch-table[data-metric] .ch-tot-col { width:120px; font-weight:600; }
+
+.ch-table[data-metric="sessions"] .ch-cell {
+  background:color-mix(in srgb, var(--acc) calc(var(--heat,0) * 0.45%), transparent);
+}
+.ch-table[data-metric="revenue"] .ch-cell {
+  background:color-mix(in srgb, var(--grn) calc(var(--heat,0) * 0.45%), transparent);
+}
+.ch-table[data-metric="sessions"] .ch-cell[data-strong] { color:var(--acc-l); font-weight:600; }
+.ch-table[data-metric="revenue"]  .ch-cell[data-strong] { color:var(--grn);   font-weight:600; }
+
+/* The total column keeps its own panel fill — it is a sum, not a heat cell. */
+.ch-table[data-metric] td.ch-tot-col,
+.ch-table[data-metric] th.ch-tot-col { background:var(--bg3); }
+
+.ch-table[data-metric] tfoot .ch-grand td {
+  border-top:1px solid var(--b3); font-weight:600; color:var(--tx);
+  background:var(--bg3);
+}
+.ch-mtd {
+  margin-left:5px; padding:1px 4px; border-radius:3px;
+  border:1px solid var(--b2); color:var(--amb); font-size:9px; letter-spacing:.04em;
+}

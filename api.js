@@ -1160,3 +1160,88 @@ export function fmtD(a,b) {
   if (!b) return null;
   return +((a-b)/b*100).toFixed(1);
 }
+
+// ── CHANNELS PIVOT (GA4 channel × month, all traffic) ──
+//
+// One runReport gives every channel for every month in the window. Unlike the
+// rest of the app this is ALL traffic, not organic only — the whole point is to
+// see organic beside paid, direct and the rest. Country filter applies; the
+// URL/brand filters don't (they are search-side concepts).
+export async function loadChannels() {
+  if (!S.selGa4) { S.channelsData = []; return; }
+
+  const n   = S.chMonths;
+  const now = new Date();
+  // Window: first day of the month (n-1) months back → today (current month partial).
+  const first = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (n - 1), 1));
+  const end   = now;
+
+  // Month columns built from the range, so a month with no data still gets a column.
+  const months = [];
+  for (let i = 0; i < n; i++) {
+    const d  = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + i, 1));
+    const ym = `${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,'0')}`;
+    // The last column is the month in progress — flagged so the table can say so.
+    months.push({
+      ym, label: `${MONTH_ABBR[d.getUTCMonth()]} ${d.getUTCFullYear()}`,
+      partial: i === n - 1,
+    });
+  }
+
+  const ga4Cty = S.selCountry ? GA4_COUNTRY_MAP[S.selCountry] : null;
+  const ctyF   = ga4Cty ? { filter: { fieldName: 'country', stringFilter: { matchType: 'EXACT', value: ga4Cty }}} : null;
+
+  _pbStart();
+  try {
+    const res = await req(`${GA4_BASE}/properties/${S.selGa4}:runReport`, {
+      method: 'POST',
+      body: JSON.stringify({
+        dateRanges: [{ startDate: ds(first), endDate: ds(end) }],
+        dimensions: [{ name: 'sessionDefaultChannelGroup' }, { name: 'yearMonth' }],
+        metrics:    [{ name: 'sessions' }, { name: 'totalRevenue' }],
+        ...(ctyF ? { dimensionFilter: ctyF } : {}),
+        limit: 5000,
+      })
+    });
+
+    const byChannel = {};
+    (res.rows || []).forEach(r => {
+      const ch = r.dimensionValues[0].value || 'Unassigned';
+      const ym = r.dimensionValues[1].value;
+      const c  = byChannel[ch] || (byChannel[ch] = { channel: ch, sessions: {}, revenue: {}, totSessions: 0, totRevenue: 0 });
+      const se = +(r.metricValues[0].value) || 0;
+      const rv = +(r.metricValues[1].value) || 0;
+      c.sessions[ym] = (c.sessions[ym] || 0) + se;
+      c.revenue[ym]  = (c.revenue[ym]  || 0) + rv;
+      c.totSessions += se;
+      c.totRevenue  += rv;
+    });
+
+    // Column totals, so each table can tint a cell by its share of the month.
+    const totSessions = {}, totRevenue = {};
+    let grandSessions = 0, grandRevenue = 0;
+    Object.values(byChannel).forEach(c => {
+      months.forEach(m => {
+        totSessions[m.ym] = (totSessions[m.ym] || 0) + (c.sessions[m.ym] || 0);
+        totRevenue[m.ym]  = (totRevenue[m.ym]  || 0) + (c.revenue[m.ym]  || 0);
+      });
+      grandSessions += c.totSessions;
+      grandRevenue  += c.totRevenue;
+    });
+
+    S.channelsData = {
+      months,
+      rows: Object.values(byChannel),
+      totSessions, totRevenue, grandSessions, grandRevenue,
+      label: `${months[0].label} – ${months[months.length-1].label}`,
+    };
+  } catch (e) {
+    console.error('loadChannels error:', e);
+    S.channelsData = [];
+  } finally { _pbDone(); }
+
+  const { renderChannels } = await import('./render.js');
+  renderChannels();
+}
+
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec'];

@@ -1400,3 +1400,113 @@ export function renderInsights() {
   </div>`;
 }
 
+
+// ── CHANNELS PIVOT ──
+//
+// Two tables, channel × month: sessions and revenue. Rows sort by their grand
+// total so the channels that carry the site sit at the top.
+//
+// Heat is absolute, not relative to the biggest cell on screen: a cell is
+// tinted by its share of that month's column total, full tint at 40%. The same
+// channel in the same month therefore reads the same colour whatever else is
+// in the table.
+const CH_HEAT_FULL = 0.40;   // share of a month that earns a 100 heat
+
+function chHeat(v, colTotal) {
+  if (!v || !colTotal) return 0;
+  return Math.min(100, Math.round((v / colTotal) / CH_HEAT_FULL * 100));
+}
+
+function chCell(v, colTotal, fmtFn, monthLabel, metricLabel) {
+  // Suppress zeros — an empty month is an em-dash, not a 0 competing for the eye.
+  if (!v) return '<td class="ch-cell ch-zero">—</td>';
+  const h     = chHeat(v, colTotal);
+  const share = colTotal ? (v / colTotal * 100).toFixed(1) : '0.0';
+  return `<td class="ch-cell" style="--heat:${h}"${h >= 60 ? ' data-strong' : ''}`
+       + ` title="${metricLabel} · ${monthLabel} · ${share}% of the month">${fmtFn(v)}</td>`;
+}
+
+const chNum   = v => Math.round(v).toLocaleString();
+const chMoney = v => '$' + Math.round(v).toLocaleString();
+
+function chTable(metric) {
+  const d        = S.channelsData;
+  const isRev    = metric === 'revenue';
+  const months   = d.months;
+  const colTot   = isRev ? d.totRevenue  : d.totSessions;
+  const grand    = isRev ? d.grandRevenue : d.grandSessions;
+  const fmtFn    = isRev ? chMoney : chNum;
+  const metricLb = isRev ? 'Revenue' : 'Sessions';
+
+  const rows = d.rows
+    .map(r => ({ ...r, vals: isRev ? r.revenue : r.sessions, tot: isRev ? r.totRevenue : r.totSessions }))
+    .filter(r => r.tot > 0)
+    .sort((a, b) => b.tot - a.tot);
+
+  if (!rows.length) {
+    return `<div class="empty-state">
+      <div class="empty-icon">📡</div>
+      <div class="empty-title">No ${metricLb.toLowerCase()} in this window</div>
+      <div class="empty-sub">Pick a longer range, or check the GA4 property.</div>
+    </div>`;
+  }
+
+  const head = `<tr>
+    <th class="ch-ch-col" title="GA4 default channel group — how GA4 classified the session's source">Channel</th>
+    ${months.map(m => `<th class="ch-num" title="${metricLb} in ${m.label}${m.partial ? ' · month to date, so not comparable with the full months beside it' : ''} · cell tint = share of that month, full tint at ${CH_HEAT_FULL*100}%">${m.label}${m.partial ? '<span class="ch-mtd">MTD</span>' : ''}</th>`).join('')}
+    <th class="ch-num ch-tot-col" title="${metricLb} across the whole window">Grand total</th>
+  </tr>`;
+
+  const body = rows.map(r => `<tr>
+    <td class="ch-ch-col" title="${r.channel}">${r.channel}</td>
+    ${months.map(m => chCell(r.vals[m.ym] || 0, colTot[m.ym] || 0, fmtFn, m.label, metricLb)).join('')}
+    <td class="ch-cell ch-tot-col">${fmtFn(r.tot)}</td>
+  </tr>`).join('');
+
+  const foot = `<tr class="ch-grand">
+    <td class="ch-ch-col">Grand total</td>
+    ${months.map(m => `<td class="ch-cell">${colTot[m.ym] ? fmtFn(colTot[m.ym]) : '—'}</td>`).join('')}
+    <td class="ch-cell ch-tot-col">${fmtFn(grand)}</td>
+  </tr>`;
+
+  return `<div class="kw-panel ch-panel"><div class="kw-scroll">
+    <table class="dt ch-table" data-metric="${metric}">
+      <thead class="sticky-head">${head}</thead>
+      <tbody>${body}</tbody>
+      <tfoot>${foot}</tfoot>
+    </table>
+  </div></div>`;
+}
+
+export function renderChannels() {
+  const sEl = document.getElementById('ch-sessions');
+  const rEl = document.getElementById('ch-revenue');
+  if (!sEl || !rEl) return;
+
+  const d = S.channelsData;
+
+  if (d === null) {
+    const skel = `<div class="kw-panel ch-panel"><div class="kw-scroll">` +
+      Array(8).fill('<div class="skel" style="height:12px;border-radius:3px;margin:9px 12px"></div>').join('') +
+      `</div></div>`;
+    sEl.innerHTML = skel; rEl.innerHTML = skel;
+    return;
+  }
+
+  if (!d || !d.months) {
+    const err = `<div class="empty-state">
+      <div class="empty-icon">⚠️</div>
+      <div class="empty-title">Couldn't load channel data</div>
+      <div class="empty-sub">Check the GA4 property selection and try again.</div>
+    </div>`;
+    sEl.innerHTML = err; rEl.innerHTML = '';
+    return;
+  }
+
+  sEl.innerHTML = chTable('sessions');
+  rEl.innerHTML = chTable('revenue');
+  const lbl = document.getElementById('ch-range-lbl');
+  if (lbl) lbl.textContent = d.label;
+  document.querySelectorAll('#page-channels .ch-mbtn')
+    .forEach(b => b.classList.toggle('active', +b.dataset.m === S.chMonths));
+}
